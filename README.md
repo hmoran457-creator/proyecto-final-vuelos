@@ -343,9 +343,9 @@ usuario hiciera nada, y el segundo intento obtuvo la predicción. Es el caso "en
 
 ![Detalle técnico: JSON enviado, HTTP 200 en el segundo intento y respuesta cruda](docs/capturas/app_detalle_tecnico.png)
 
-<<CAPTURA: app en el modo "Error HTTP: la API rechaza la entrada", mostrando el mensaje del 400>>
-
-<<CAPTURA: app en el modo "Tiempo de espera agotado" o "Respuesta inválida", mostrando el aviso sin predicción>>
+Los rechazos de entrada inválida se ven en vivo en la tabla de pruebas del endpoint (sección 3). Los demás casos (tiempo de espera,
+404, respuesta inválida) se demuestran con el selector **Modo demostración de fallas** de la app y están cubiertos por las pruebas
+automáticas de `pruebas/`.
 
 ## Orquestación
 
