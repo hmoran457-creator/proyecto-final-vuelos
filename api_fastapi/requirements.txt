@@ -1,0 +1,10 @@
+# IMPORTANTE: fija estas bibliotecas a las MISMAS versiones que imprime el notebook 04_entrenamiento
+# (mlflow, scikit-learn, pandas, cloudpickle), por ejemplo "mlflow==3.8.1". Si difieren de las del
+# entrenamiento, el modelo puede cargar mal o dar predicciones distintas.
+# Se necesita mlflow completo (no "mlflow-skinny") para cargar el modelo desde Unity Catalog.
+fastapi
+uvicorn
+mlflow
+scikit-learn
+pandas
+cloudpickle

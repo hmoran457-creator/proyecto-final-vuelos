@@ -1,0 +1,14 @@
+# Dependencias para correr las pruebas (python -m pytest pruebas -q, desde la raíz del repositorio).
+#
+# Con solo pytest y requests corren las pruebas de test_cliente.py (menos 2 que usan databricks-sdk y se omiten solas).
+# test_app.py se omite completo si no está streamlit.
+# test_api.py se omite completo si no están fastapi y mlflow (y necesita uvicorn, httpx y pandas para correr).
+pytest
+requests
+streamlit==1.38.0
+databricks-sdk==0.33.0
+fastapi
+uvicorn
+httpx
+mlflow
+pandas

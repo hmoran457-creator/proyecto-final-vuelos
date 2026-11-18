@@ -1,0 +1,12 @@
+# Configuración de Databricks Apps para la aplicación Streamlit.
+command: ["streamlit", "run", "app.py"]
+
+env:
+  # Nombre del endpoint de Model Serving. Lo entrega el recurso de la app cuya clave es "serving-endpoint"
+  # (agrégalo en la configuración de la app con el permiso "Can query").
+  - name: "SERVING_ENDPOINT"
+    valueFrom: "serving-endpoint"
+  # Plan B: si Model Serving no está disponible, despliega api_fastapi como segunda app y pon aquí su URL
+  # (sin diagonal final). Quita el comentario de las dos líneas siguientes.
+  # - name: "URL_BASE_API"
+  #   value: "https://<url-de-la-app-fastapi>"

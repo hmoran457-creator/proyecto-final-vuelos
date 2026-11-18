@@ -1,0 +1,414 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "API de predicción de retrasos de vuelos (vuelos-retrasos)",
+    "version": "1.0.0",
+    "description": "Predice si un vuelo comercial doméstico de EE.UU. llegará con 15 minutos o más de retraso, usando solo datos conocidos antes del despegue. Este archivo se escribió a mano a partir de la firma del modelo (función firma_del_modelo de notebooks/_modelo.py) y del contrato de docs/CONTEXTO_TECNICO.md; el notebook 05_publicar_endpoint lo reemplaza por el esquema en vivo que genera Databricks, cuando esa función está disponible en el workspace. La validación de entradas tiene dos capas: la firma de MLflow (tipos y columnas) y las reglas de negocio dentro del modelo (rangos, códigos conocidos y coherencia)."
+  },
+  "servers": [
+    {
+      "url": "https://<host-del-workspace>",
+      "description": "URL del workspace de Databricks donde está el endpoint de Model Serving."
+    }
+  ],
+  "paths": {
+    "/serving-endpoints/vuelos-retrasos/invocations": {
+      "post": {
+        "operationId": "predecirRetraso",
+        "summary": "Predice la probabilidad de retraso de uno o más vuelos",
+        "description": "Recibe de 1 a 1,000 vuelos en formato dataframe_split o dataframe_records y devuelve, por cada vuelo y en el mismo orden, la probabilidad de llegar con 15 minutos o más de retraso, la predicción y el umbral de decisión usado.",
+        "security": [
+          {
+            "tokenBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PeticionDataframeSplit"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PeticionDataframeRecords"
+                  }
+                ]
+              },
+              "examples": {
+                "vuelo_DL_ATL_LAX": {
+                  "summary": "Un vuelo de Delta de Atlanta a Los Ángeles (dataframe_split)",
+                  "value": {
+                    "dataframe_split": {
+                      "columns": [
+                        "mes",
+                        "dia_semana",
+                        "hora_salida_prog",
+                        "hora_llegada_prog",
+                        "distancia_millas",
+                        "duracion_prog_min",
+                        "aerolinea",
+                        "origen",
+                        "destino"
+                      ],
+                      "data": [
+                        [7, 5, 18, 21, 1947.0, 285.0, "DL", "ATL", "LAX"]
+                      ]
+                    }
+                  }
+                },
+                "vuelo_DL_ATL_LAX_records": {
+                  "summary": "El mismo vuelo en formato dataframe_records",
+                  "value": {
+                    "dataframe_records": [
+                      {
+                        "mes": 7,
+                        "dia_semana": 5,
+                        "hora_salida_prog": 18,
+                        "hora_llegada_prog": 21,
+                        "distancia_millas": 1947.0,
+                        "duracion_prog_min": 285.0,
+                        "aerolinea": "DL",
+                        "origen": "ATL",
+                        "destino": "LAX"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Predicción correcta. Una entrada por vuelo, en el mismo orden de la petición.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaPrediccion"
+                },
+                "examples": {
+                  "prediccion": {
+                    "summary": "Ejemplo del formato (los números dependen de la versión del modelo)",
+                    "value": {
+                      "predictions": [
+                        {
+                          "probabilidad_retraso": 0.3124,
+                          "retraso_predicho": 0,
+                          "umbral_decision": 0.41
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Entrada inválida. Regla de negocio violada (INVALID_PARAMETER_VALUE, el mensaje útil empieza en 'Entrada inválida:') o tipo incompatible / JSON mal formado (BAD_REQUEST, mensaje en inglés de la firma de MLflow). No conviene reintentar sin corregir la entrada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "regla_de_negocio": {
+                    "summary": "Mes fuera de rango",
+                    "value": {
+                      "error_code": "INVALID_PARAMETER_VALUE",
+                      "message": "Failed to predict data '...'. \nError: Entrada inválida: fila 0: mes=13 fuera de rango (1-12)"
+                    }
+                  },
+                  "tipo_incompatible": {
+                    "summary": "Tipo incompatible en una columna (mensaje en inglés generado por la firma de MLflow)",
+                    "value": {
+                      "error_code": "BAD_REQUEST",
+                      "message": "Failed to convert column mes to type 'int64'"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Falta el token o no es válido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El usuario o la aplicación no tiene el permiso 'Can query' sobre el endpoint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El endpoint con ese nombre no existe en el workspace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Demasiadas peticiones: reintentar con espera creciente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Tiempo de espera agotado, típico de la primera consulta cuando el endpoint estaba dormido (escala a cero): reintentar.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Error del servicio (500, 502, 503) o endpoint despertando: reintentar con espera creciente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "tokenBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Token de Databricks (personal o de la identidad de la aplicación) en el encabezado Authorization: Bearer <token>."
+      }
+    },
+    "schemas": {
+      "Vuelo": {
+        "type": "object",
+        "description": "Un vuelo con las 9 variables que se conocen antes del despegue. Los textos se normalizan (sin espacios y en mayúsculas) antes de validarse.",
+        "required": [
+          "mes",
+          "dia_semana",
+          "hora_salida_prog",
+          "hora_llegada_prog",
+          "distancia_millas",
+          "duracion_prog_min",
+          "aerolinea",
+          "origen",
+          "destino"
+        ],
+        "properties": {
+          "mes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12,
+            "description": "Mes del vuelo, de 1 a 12."
+          },
+          "dia_semana": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 7,
+            "description": "Día de la semana: 1 = lunes ... 7 = domingo."
+          },
+          "hora_salida_prog": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 23,
+            "description": "Hora programada de salida (0 a 23)."
+          },
+          "hora_llegada_prog": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 23,
+            "description": "Hora programada de llegada (0 a 23)."
+          },
+          "distancia_millas": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 6000,
+            "description": "Distancia en millas: mayor que 0 y hasta 6,000. Junto con duracion_prog_min, la velocidad implícita (distancia / (duración / 60)) debe quedar entre 40 y 700 mph."
+          },
+          "duracion_prog_min": {
+            "type": "number",
+            "minimum": 15,
+            "maximum": 900,
+            "description": "Duración programada en minutos, de 15 a 900. Junto con distancia_millas, la velocidad implícita debe quedar entre 40 y 700 mph."
+          },
+          "aerolinea": {
+            "type": "string",
+            "description": "Código de la aerolínea (por ejemplo AA, DL, UA, WN). Debe ser un código presente en los datos de entrenamiento."
+          },
+          "origen": {
+            "type": "string",
+            "description": "Código del aeropuerto de origen (por ejemplo ATL). Debe ser un código presente en los datos de entrenamiento y distinto del destino."
+          },
+          "destino": {
+            "type": "string",
+            "description": "Código del aeropuerto de destino (por ejemplo LAX). Debe ser un código presente en los datos de entrenamiento y distinto del origen."
+          }
+        }
+      },
+      "PeticionDataframeSplit": {
+        "type": "object",
+        "description": "Formato por columnas y filas. Las columnas deben ser las 9 del modelo.",
+        "required": [
+          "dataframe_split"
+        ],
+        "properties": {
+          "dataframe_split": {
+            "type": "object",
+            "required": [
+              "columns",
+              "data"
+            ],
+            "properties": {
+              "columns": {
+                "type": "array",
+                "description": "Nombres de las 9 columnas, en este orden.",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "mes",
+                    "dia_semana",
+                    "hora_salida_prog",
+                    "hora_llegada_prog",
+                    "distancia_millas",
+                    "duracion_prog_min",
+                    "aerolinea",
+                    "origen",
+                    "destino"
+                  ]
+                },
+                "minItems": 9,
+                "maxItems": 9
+              },
+              "data": {
+                "type": "array",
+                "description": "Una fila por vuelo (máximo 1,000), con los valores en el mismo orden que columns.",
+                "minItems": 1,
+                "maxItems": 1000,
+                "items": {
+                  "type": "array",
+                  "minItems": 9,
+                  "maxItems": 9,
+                  "items": {
+                    "type": [
+                      "integer",
+                      "number",
+                      "string"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "PeticionDataframeRecords": {
+        "type": "object",
+        "description": "Formato como lista de objetos, uno por vuelo.",
+        "required": [
+          "dataframe_records"
+        ],
+        "properties": {
+          "dataframe_records": {
+            "type": "array",
+            "description": "Un objeto por vuelo (máximo 1,000).",
+            "minItems": 1,
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/components/schemas/Vuelo"
+            }
+          }
+        }
+      },
+      "Prediccion": {
+        "type": "object",
+        "required": [
+          "probabilidad_retraso",
+          "retraso_predicho",
+          "umbral_decision"
+        ],
+        "properties": {
+          "probabilidad_retraso": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Probabilidad de llegar con 15 minutos o más de retraso."
+          },
+          "retraso_predicho": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ],
+            "description": "1 si probabilidad_retraso es mayor o igual que umbral_decision; si no, 0."
+          },
+          "umbral_decision": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Umbral que maximizó F1 en validación; es constante por versión del modelo."
+          }
+        }
+      },
+      "RespuestaPrediccion": {
+        "type": "object",
+        "required": [
+          "predictions"
+        ],
+        "properties": {
+          "predictions": {
+            "type": "array",
+            "description": "Una predicción por vuelo, en el mismo orden de la petición.",
+            "items": {
+              "$ref": "#/components/schemas/Prediccion"
+            }
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "error_code",
+          "message"
+        ],
+        "properties": {
+          "error_code": {
+            "type": "string",
+            "description": "Código de error. En un 400: INVALID_PARAMETER_VALUE (regla de negocio) o BAD_REQUEST (tipo o JSON). Otros códigos pueden aparecer en 401, 403, 404, 429 y 5XX.",
+            "examples": [
+              "INVALID_PARAMETER_VALUE",
+              "BAD_REQUEST"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "description": "Mensaje del error. En una regla de negocio llega envuelto ('Failed to predict data ...') y el texto útil empieza en 'Entrada inválida:'."
+          }
+        }
+      }
+    }
+  }
+}

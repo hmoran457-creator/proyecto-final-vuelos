@@ -1,0 +1,12 @@
+# Plan B: segunda Databricks App con FastAPI (solo si Model Serving no está disponible).
+# main.py lee el puerto de DATABRICKS_APP_PORT y escucha en 0.0.0.0, por eso se arranca con python
+# (así no dependemos de que app.yaml expanda variables dentro de "command").
+command: ["python", "main.py"]
+
+env:
+  # Modelo registrado en Unity Catalog. Cambia "workspace" si tu catálogo se llama distinto.
+  - name: "MODEL_URI"
+    value: "models:/workspace.vuelos.modelo_retrasos@campeon"
+  # Nombre que responde la ruta /serving-endpoints/<nombre>/invocations (el mismo que usa la app Streamlit).
+  - name: "NOMBRE_ENDPOINT"
+    value: "vuelos-retrasos"

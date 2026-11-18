@@ -1,0 +1,3 @@
+# Streamlit y databricks-sdk ya vienen preinstalados en Databricks Apps (1.38.0 y 0.33.0):
+# no los fijes aquí con versiones más nuevas. Solo hace falta requests.
+requests
