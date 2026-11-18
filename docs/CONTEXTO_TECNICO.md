@@ -179,7 +179,7 @@ se muestra lo que sigue al último `Error: `; en cualquier otro caso se muestra 
 | Petición | Código | `error_code` | Mensaje |
 |---|---|---|---|
 | Regla de negocio (mes 13, aerolínea o aeropuerto desconocido, origen = destino, velocidad imposible, valor faltante, más de 1,000 filas) | 400 | `INVALID_PARAMETER_VALUE` | envuelto; termina en `Entrada inválida: fila N: ...` (lista hasta 10 problemas) |
-| Falta una columna | 400 | `INVALID_PARAMETER_VALUE` | envuelto; termina en `Model is missing inputs ['destino'].` |
+| Falta una columna | 400 | `INVALID_PARAMETER_VALUE` (local) | local: envuelto, termina en `Model is missing inputs ['destino'].`; **en Databricks** (comprobado): `Failed to enforce schema of data '...'` |
 | Tipo incompatible (`mes="julio"`, `mes=null`) | 400 | `BAD_REQUEST` | en inglés, de la firma: `Failed to convert column mes to type 'int64'` |
 | JSON mal formado o clave desconocida | 400 | `BAD_REQUEST` | en inglés |
 

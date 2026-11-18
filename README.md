@@ -1,6 +1,6 @@
 # ¿Se retrasará mi vuelo? Pipeline medallion y modelo publicado en Databricks
 
-**Autor:** <<TU NOMBRE>> · Proyecto final de Big Data · Noviembre de 2026
+**Autor:** Hector Moran · Proyecto final de Big Data · Noviembre de 2026
 
 Este proyecto predice si un vuelo comercial doméstico de EE.UU. llegará con **15 minutos o más de retraso**,
 usando solo información que se conoce antes del despegue (mes, día de la semana, horarios programados,
@@ -11,22 +11,8 @@ clase "retrasado") se registra en **Unity Catalog**, se publica como un **endpoi
 contrato documentado en OpenAPI y validación de entradas, y lo consulta una **aplicación Streamlit** (Databricks
 Apps) que maneja errores, tiempos de espera y respuestas inválidas.
 
-## Pendientes antes de entregar
-
-> **Esta sección es solo para ti: bórrala completa antes de entregar el repositorio.**
-
-Marcadores que debes reemplazar con resultados de tu propia corrida (búscalos con `<<`). **No debe quedar ninguno.**
-
-- [ ] `<<TU NOMBRE>>` (arriba)
-- [ ] Datos: número de filas de bronce y por archivo (`<<PEGAR: ...>>` en la sección "Los datos")
-- [ ] 1. Limpieza: bitácora de calidad en Markdown (salida del notebook `02_plata`) y balance de clases de `03_oro`
-- [ ] 1. Limpieza: captura de las tablas medallion en Catalog
-- [ ] 2. Problema y métrica: tabla de resultados (bloque `RESUMEN PARA EL README` del notebook `04_entrenamiento`) y captura de la matriz de confusión y la curva precisión-recall
-- [ ] 3. Publicación: tabla de pruebas en vivo del notebook `05_publicar_endpoint` y captura del endpoint **Ready**
-- [ ] 3. Publicación: archivo `docs/openapi.json` generado y captura de la especificación
-- [ ] 4. Aplicación: capturas de predicción, entrada inválida y modo de falla
-- [ ] Orquestación: captura del Job y de una ejecución exitosa
-- [ ] Revisar que el diagrama Mermaid y las tablas se vean bien en GitHub
+**Resultados en una línea:** 7,079,061 vuelos cargados; 7,079,036 tras la limpieza; el modelo publicado obtiene
+**F1 = 0.392** en días que nunca vio (la línea base "siempre retrasado" logra 0.326) y el endpoint pasó las 9 pruebas en vivo.
 
 ## Arquitectura
 
@@ -58,8 +44,23 @@ flowchart LR
 
 * **Fuente:** BTS (Bureau of Transportation Statistics, EE.UU.), "Reporting Carrier On-Time Performance", los 12
   meses de 2024. Cada vuelo programado es un registro, con 109 columnas.
-* **Volumen:** unos 630 mil vuelos por mes, **aproximadamente 7 millones en el año** (el requisito del curso es
-  4 millones o más). Cifra exacta de bronce: <<PEGAR: número de filas de bronce y tabla de filas por archivo del notebook 01_bronce>>.
+* **Volumen:** **7,079,061 vuelos** en la tabla bronce (el requisito del curso es 4 millones o más), entre 519 y 635 mil por mes:
+
+  | Archivo | Vuelos | Desde | Hasta |
+  |---|---:|---|---|
+  | vuelos_2024_01.zip | 547,271 | 2024-01-01 | 2024-01-31 |
+  | vuelos_2024_02.zip | 519,221 | 2024-02-01 | 2024-02-29 |
+  | vuelos_2024_03.zip | 591,767 | 2024-03-01 | 2024-03-31 |
+  | vuelos_2024_04.zip | 582,185 | 2024-04-01 | 2024-04-30 |
+  | vuelos_2024_05.zip | 609,743 | 2024-05-01 | 2024-05-31 |
+  | vuelos_2024_06.zip | 611,132 | 2024-06-01 | 2024-06-30 |
+  | vuelos_2024_07.zip | 634,613 | 2024-07-01 | 2024-07-31 |
+  | vuelos_2024_08.zip | 619,025 | 2024-08-01 | 2024-08-31 |
+  | vuelos_2024_09.zip | 582,622 | 2024-09-01 | 2024-09-30 |
+  | vuelos_2024_10.zip | 615,497 | 2024-10-01 | 2024-10-31 |
+  | vuelos_2024_11.zip | 575,404 | 2024-11-01 | 2024-11-30 |
+  | vuelos_2024_12.zip | 590,581 | 2024-12-01 | 2024-12-31 |
+  | **Total** | **7,079,061** | | |
 * **Ingesta:** los 12 zips se descargan en la laptop (`datos/descargar_zips.ps1`) y se suben a un volumen de Unity Catalog
   (`/Volumes/<catálogo>/vuelos/crudo/zips`), porque Free Edition restringe la salida a internet. El notebook `01_bronce`
   descomprime cada zip, lo carga a Delta y borra el CSV temporal.
@@ -94,7 +95,7 @@ De las 109 columnas se conservan 33 (se descartan identificadores redundantes y 
 | **Duplicados exactos** | Se eliminan | Una fila idéntica contaría dos veces el mismo vuelo |
 | **Duplicados por llave** (fecha, aerolínea, número de vuelo, origen, destino, hora programada) | Se conserva una fila por vuelo | Un vuelo es un solo evento; duplicarlo sesgaría conteos y entrenamiento. La revisión se registra aunque dé 0 |
 | **Valores imposibles** (7 reglas de dominio: fecha incoherente con año y mes, mes o día fuera de rango, hora HHMM inválida, distancia fuera de 0 a 6,000 mi, duración fuera de 15 a 900 min, velocidad implícita fuera de 40 a 700 mph, origen igual a destino) | Se eliminan | Son errores de captura, no vuelos raros |
-| **Outliers estadísticos** (retrasos largos) | **No se eliminan**; se acotan a los percentiles 0.1 y 99.9 en una columna nueva (`retraso_llegada_min_acotado`) | La regla IQR marcaría como atípica a una parte importante de los vuelos, y son justo los retrasos reales que se quiere predecir. El acotado solo sirve para que los promedios de oro no dependan de unos cuantos casos. La etiqueta binaria no cambia |
+| **Outliers estadísticos** (retrasos largos) | **No se eliminan**; se acotan a los percentiles 0.1 y 99.9 (-50 y 741 min) en una columna nueva (`retraso_llegada_min_acotado`) | La regla IQR marcaría como atípico al 9.6 % de los vuelos, y son justo los retrasos reales que se quiere predecir. El acotado solo sirve para que los promedios de oro no dependan de unos cuantos casos. La etiqueta binaria no cambia |
 
 ### Oro (`notebooks/03_oro.py`)
 
@@ -127,21 +128,41 @@ consulta del endpoint, así lo que se transforma en producción es idéntico a l
   cruzada interna para no filtrar la etiqueta al ajustarse.
 * **`class_weight="balanced"`** da más peso a la clase minoritaria (vuelos retrasados) para que el modelo no se limite a decir "a tiempo".
 
-Cuál de los dos modelos gana depende de la corrida: se reporta en el bloque `RESUMEN PARA EL README` de la sección 2.
+En esta corrida ganó el modelo de **gradiente**, por muy poco (F1 en validación 0.432 contra 0.431 de la logística; ver sección 2).
 
 ### Bitácora de calidad (evidencia)
 
-<<PEGAR: tabla Markdown que imprime la última celda del notebook 02_plata (9 renglones, de "| # | Paso |..." al final)>>
+Tabla `plata_bitacora_calidad`, generada por `02_plata` en la corrida completa:
 
-Balance de clases y tamaños de `oro_vuelos_modelo`: <<PEGAR: salida de la tabla de balance del notebook 03_oro: vuelos, días, retrasados y % por conjunto>>
+| # | Paso | Tratamiento | Filas antes | Filas después | Eliminadas | Justificación |
+|---|---|---|---:|---:|---:|---|
+| 1 | 1. Tipos de dato | 33 columnas convertidas de texto a su tipo real; 0 valores no convertibles pasan a NULL | 7,079,061 | 7,079,061 | 0 | Bronce guarda todo como texto. Se usa try_cast para que un valor inválido se cuente y quede NULL en vez de detener el proceso o guardarse como dato falso. |
+| 2 | 2. Nulos | Se eliminan filas con nulo en columnas críticas (identificación del vuelo y variables del modelo) | 7,079,061 | 7,079,059 | 2 | Sin fecha, ruta, horario o distancia no se puede identificar el vuelo ni usarlo para predecir. |
+| 3 | 2. Nulos | Causas de retraso: 28,145,485 nulos se rellenan con 0; matrícula y código de cancelación reciben categoría explícita | 7,079,059 | 7,079,059 | 0 | El BTS solo reporta causas cuando hubo retraso de 15 min o más: ahí el nulo equivale a 0 minutos. |
+| 4 | 2. Nulos | Etiqueta de retraso: 113,813 nulos se conservan como NULL (no se imputan) | 7,079,059 | 7,079,059 | 0 | Son vuelos cancelados o desviados: no tienen hora de llegada. Imputar la variable objetivo sería inventar el resultado; se excluyen del modelo en la capa oro. |
+| 5 | 3. Duplicados | Se eliminan filas repetidas exactas (mismos valores en las 33 columnas) | 7,079,059 | 7,079,059 | 0 | Una fila idéntica no aporta información y contaría dos veces el mismo vuelo. |
+| 6 | 3. Duplicados | Se eliminan duplicados por llave natural del vuelo (se conserva una fila por vuelo) | 7,079,059 | 7,079,059 | 0 | Un vuelo es un solo evento: dos registros del mismo vuelo sesgarían los conteos y el entrenamiento. |
+| 7 | 4. Outliers | Se eliminan filas que violan alguna de las 7 reglas de dominio (valores imposibles) | 7,079,059 | 7,079,036 | 23 | Son errores de captura, no vuelos raros: fechas incoherentes, horas inexistentes, distancias o velocidades físicamente imposibles. |
+| 8 | 4. Outliers | Retrasos extremos: NO se eliminan; 13,414 valores se acotan a los percentiles 0.1 y 99.9 (-50 y 741 min) en una columna nueva | 7,079,036 | 7,079,036 | 0 | La regla IQR marcaría 9.6 % de los vuelos, que son retrasos reales y la clase que se quiere predecir. Se acota solo para que los promedios no dependan de unos cuantos casos. |
+| 9 | 5. Resultado | Tabla plata escrita con 38 columnas | 7,079,061 | 7,079,036 | 25 | Balance total de bronce a plata. |
 
-<<CAPTURA: Catalog con las tablas bronce_vuelos, plata_vuelos, plata_bitacora_calidad, oro_vuelos_modelo y oro_resumen_*>>
+**Lectura:** los datos del BTS vienen limpios en lo esencial (cero duplicados y cero valores no convertibles); la limpieza quita solo
+25 filas (0.0004 %). Los duplicados se revisan igual porque la carga es incremental: un mes subido dos veces se eliminaría aquí.
+
+Balance de clases de `oro_vuelos_modelo` (6,965,238 vuelos operados; se excluyen los 113,798 cancelados o desviados):
+
+| Conjunto | Vuelos | Días | Retrasados | % retrasados |
+|---|---:|---:|---:|---:|
+| entrenamiento | 5,492,436 | 289 | 1,162,412 | 21.16 % |
+| prueba | 1,472,802 | 77 | 287,549 | 19.52 % |
+
+![Tablas medallion en Unity Catalog](docs/capturas/catalogo_tablas.png)
 
 ## 2. Definición del problema y métrica (rúbrica: 10 puntos)
 
 * **Tipo de tarea:** clasificación binaria supervisada. `retrasado = 1` si el vuelo llegó 15 minutos o más tarde.
-* **Desbalance:** solo alrededor de 1 de cada 5 vuelos se retrasa (aproximadamente 18 a 25 %). Un modelo que siempre diga
-  "a tiempo" tendría cerca de 80 % de exactitud sin servir para nada.
+* **Desbalance:** solo 1 de cada 5 vuelos se retrasa (21.2 % en entrenamiento, 19.5 % en prueba). Un modelo que siempre diga
+  "a tiempo" tiene 80.5 % de exactitud sin servir para nada.
 * **Métrica principal: F1 de la clase "retrasado".** Combina la precisión (de los vuelos que el modelo marca como retrasados, cuántos lo estuvieron)
   y el recall (de los vuelos retrasados, cuántos detecta). Vale 0 para el modelo trivial "siempre a tiempo".
 * **Métricas que reporta `04_entrenamiento` en los días de prueba:** F1 (clase retrasado), precisión, recall, PR-AUC, ROC-AUC y exactitud,
@@ -158,13 +179,33 @@ Balance de clases y tamaños de `oro_vuelos_modelo`: <<PEGAR: salida de la tabla
 * **Muestras:** como el cómputo de Free Edition es pequeño, el entrenamiento usa muestras aleatorias de la tabla oro (constantes `FILAS_ENTRENAMIENTO`,
   `FILAS_PRUEBA` y `FILAS_LOGISTICA` en `04_entrenamiento`); el bloque de resultados dice cuántos vuelos y días se usaron realmente.
 
-Resultados (versión registrada como `campeon`). El notebook 04 imprime un bloque Markdown que empieza con `RESUMEN PARA EL README`; contiene la tabla
-de métricas de prueba (modelo elegido vs. "siempre retrasado" vs. "siempre a tiempo"), el modelo elegido con su F1 en validación, el umbral, el tamaño de cada muestra,
-el porcentaje de retrasos en prueba, la matriz de confusión y la versión registrada con el número de aerolíneas y aeropuertos conocidos:
+### Resultados en los días de prueba (el modelo nunca los vio)
 
-<<PEGAR: bloque "RESUMEN PARA EL README" que imprime el notebook 04_entrenamiento (sin las líneas de guiones)>>
+| Métrica | Modelo (gradiente) | Siempre "retrasado" | Siempre "a tiempo" |
+|---|---:|---:|---:|
+| **F1 (clase retrasado)** | **0.392** | 0.326 | 0.000 |
+| Precisión | 0.298 | 0.195 | 0.000 |
+| Recall | 0.572 | 1.000 | 0.000 |
+| PR-AUC | 0.331 | 0.195 | 0.195 |
+| ROC-AUC | 0.673 | 0.500 | 0.500 |
+| Exactitud | 0.654 | 0.195 | 0.805 |
 
-<<CAPTURA: matriz de confusión y curva precisión-recall de 04_entrenamiento (sección 5)>>
+* **Modelo elegido:** gradiente (F1 en validación: logística 0.431, gradiente 0.432).
+* **Umbral de decisión:** 0.4979 (maximiza F1 en los días de validación).
+* **Muestras:** ajuste 640,862 vuelos (231 días), validación 158,535 (58 días), prueba 299,762 (77 días). La línea base logística se entrenó con 200,000 vuelos.
+* **Porcentaje de retrasos en prueba:** 19.5 %.
+* **Matriz de confusión (prueba):** VN 162,761 · FP 78,615 · FN 24,995 · VP 33,391.
+* **Modelo registrado:** `workspace.vuelos.modelo_retrasos` versión 2 (alias `campeon`), 15 aerolíneas y 348 aeropuertos conocidos.
+
+![Matriz de confusión en los días de prueba](docs/capturas/matriz_confusion.png)
+
+**Cómo leer estos números.**
+
+* El modelo **detecta 57 % de los vuelos que sí se retrasan** (recall 0.572). De cada 10 avisos de retraso, 3 aciertan (precisión 0.298).
+* Supera a la línea base útil "siempre retrasado" en F1 (0.392 contra 0.326) y en PR-AUC (0.331 contra 0.195).
+* Su exactitud (65.4 %) es **menor** que la de "siempre a tiempo" (80.5 %). Es justo el ejemplo de por qué la exactitud engaña en un problema desbalanceado: "siempre a tiempo" nunca detecta un retraso.
+* Un F1 modesto es lo esperado: el modelo solo ve datos conocidos antes del despegue, sin clima ni congestión del día. Un F1 muy alto habría indicado fuga de información.
+* La logística y el gradiente quedaron prácticamente empatados (0.431 y 0.432 en validación). La señal disponible es limitada, y un modelo más complejo no la exprime mucho más.
 
 ## 3. Publicación del modelo (rúbrica: 25 puntos)
 
@@ -193,10 +234,10 @@ También acepta `dataframe_records`. Máximo 1,000 filas por petición.
 **Respuesta correcta (HTTP 200)**
 
 ```json
-{"predictions": [{"probabilidad_retraso": 0.3124, "retraso_predicho": 0, "umbral_decision": 0.41}]}
+{"predictions": [{"probabilidad_retraso": 0.6618, "retraso_predicho": 1, "umbral_decision": 0.4979}]}
 ```
 
-(Ejemplo del formato: los números dependen de la versión del modelo.) `retraso_predicho` es 1 si `probabilidad_retraso >= umbral_decision`.
+(Respuesta real del endpoint, versión 2 del modelo, a la petición de arriba.) `retraso_predicho` es 1 si `probabilidad_retraso >= umbral_decision`.
 
 **Validación de entradas, en dos capas**
 
@@ -226,20 +267,29 @@ Hay dos familias de error, ambas con HTTP 400:
 | Qué falla | `error_code` | Mensaje |
 |---|---|---|
 | Regla de negocio (mes fuera de rango, aerolínea o aeropuerto desconocido, origen igual a destino, velocidad imposible, valor faltante, más de 1,000 filas) | `INVALID_PARAMETER_VALUE` | Envuelto; termina en `Entrada inválida: fila N: ...` (lista hasta 10 problemas) |
-| Tipo incompatible o JSON mal formado (por ejemplo `mes="julio"`) | `BAD_REQUEST` | En inglés, generado por la firma de MLflow antes de llegar al modelo |
+| Tipo incompatible, columna faltante o JSON mal formado (por ejemplo `mes="julio"`) | `BAD_REQUEST` u otro código del servidor | En inglés, generado por la firma de MLflow antes de llegar al modelo |
 
-(El formato de este cuerpo se observó con el servidor real de MLflow en una prueba local; en Databricks lo confirma la sección 4.1 del notebook `05_publicar_endpoint`,
-que imprime los cuerpos exactos de una respuesta correcta y de un error.)
+**Documentación OpenAPI:** [`docs/openapi.json`](docs/openapi.json) describe el contrato en formato OpenAPI 3.1: campos, tipos, rangos, ejemplos y códigos de
+error. Se escribió a partir de la firma del modelo. El notebook 05 además descarga el esquema que genera Databricks y lo guarda en el volumen
+(`/Volumes/<catálogo>/vuelos/crudo/docs/openapi.json`). Para verlo como Swagger, pega el archivo en [editor.swagger.io](https://editor.swagger.io).
 
-**Documentación OpenAPI:** el notebook 05 descarga el esquema del endpoint y lo guarda siempre en el volumen y, si corre dentro del Git folder, en [`docs/openapi.json`](docs/openapi.json); si no, se descarga del volumen y se sube a esa ruta.
-<<CAPTURA: especificación OpenAPI del endpoint (Serving > vuelos-retrasos, o el JSON abierto en un visor)>>
+**Pruebas en vivo contra el endpoint** (notebook `05_publicar_endpoint`, ejecutado en Databricks contra la versión 2 del modelo):
 
-**Pruebas en vivo contra el endpoint:** el notebook 05 ejecuta 9 pruebas reales (2 vuelos válidos, uno de ellos con minúsculas y espacios, y 7 entradas inválidas:
-tipo incorrecto, mes 13, aerolínea desconocida, aeropuerto desconocido, columna faltante, origen igual a destino y velocidad imposible). Cada una dice `PASA` o `FALLA`:
+| Prueba | Esperado | HTTP | Segundos | Resultado | Mensaje mostrado |
+|---|---|---:|---:|---|---|
+| vuelo válido (DL, ATL → LAX) | 200 | 200 | 0.17 | PASA | probabilidad_retraso=0.6618, retraso_predicho=1, umbral_decision=0.4979 |
+| válido con minúsculas y espacios (` dl `, `atl`, `lax `) | 200 | 200 | 0.13 | PASA | probabilidad_retraso=0.6618, retraso_predicho=1, umbral_decision=0.4979 (mismo resultado: el modelo normaliza el texto) |
+| tipo incorrecto: `mes='julio'` | 4xx | 400 | 0.14 | PASA | Invalid input. Data is not compatible with model signature. Failed to convert column mes to type 'int64'. |
+| mes fuera de rango: 13 | 4xx | 400 | 0.07 | PASA | Entrada inválida: fila 0: mes=13 fuera de rango (1-12) |
+| aerolínea desconocida: ZZ | 4xx | 400 | 0.07 | PASA | Entrada inválida: fila 0: aerolinea='ZZ' no es una aerolínea conocida por el modelo (conocidas: 9E, AA, AS, B6, DL, F9, G4, HA, MQ, NK, OH, OO, UA, WN, YX) |
+| aeropuerto desconocido: XXX | 4xx | 400 | 0.14 | PASA | Entrada inválida: fila 0: origen='XXX' no es un aeropuerto conocido por el modelo |
+| falta la columna `destino` | 4xx | 400 | 0.15 | PASA | Failed to enforce schema of data '…' (la firma rechaza la petición: llegan 8 de las 9 columnas) |
+| origen igual a destino | 4xx | 400 | 0.11 | PASA | Entrada inválida: fila 0: origen y destino son el mismo aeropuerto (ATL) |
+| velocidad imposible: 2,000 millas en 30 min | 4xx | 400 | 0.07 | PASA | Entrada inválida: fila 0: velocidad implícita de 4000 mph fuera de rango (40-700): revisa distancia_millas y duracion_prog_min |
 
-<<PEGAR: tabla de pruebas del notebook 05_publicar_endpoint, con su columna resultado>>
+Resultado del notebook: `OK: endpoint vuelos-retrasos listo, sirviendo la versión 2` y `OK: las 9 pruebas del endpoint pasaron`.
 
-<<CAPTURA: Serving > vuelos-retrasos con estado Ready>>
+![Endpoint vuelos-retrasos en estado Ready](docs/capturas/endpoint_ready.png)
 
 ## 4. Aplicación de consulta (rúbrica: 30 puntos)
 
@@ -275,11 +325,27 @@ El cliente tiene pruebas automáticas en `pruebas/` que cubren cada fila de la t
 espera y las respuestas inválidas: 91 pruebas del cliente y de la interfaz y 34 de la API del plan B, todas aprobadas en la última
 corrida. Corren contra un servidor falso local, no contra Databricks (instrucciones en `pruebas/README.md`).
 
-<<CAPTURA: app mostrando una predicción correcta>>
+### La app funcionando en Databricks Apps
 
-<<CAPTURA: app mostrando un error de entrada inválida (mensaje de la API)>>
+App desplegada y corriendo, con la versión 2 del modelo servida:
 
-<<CAPTURA: app en un modo de falla (respuesta inválida o tiempo de espera) mostrando el aviso, sin predicción>>
+![App vuelos-app desplegada en Databricks Apps](docs/capturas/app_desplegada.png)
+
+![Formulario de la app, con el estado del endpoint en la barra lateral](docs/capturas/app_formulario.png)
+
+Predicción de un vuelo DL de Atlanta a Los Ángeles, un miércoles de noviembre:
+
+![Predicción mostrada por la app](docs/capturas/app_prediccion.png)
+
+**Los reintentos funcionando en vivo.** El detalle técnico de esa misma consulta muestra `HTTP 200 · latencia 32.23 s · intentos: 2`.
+El endpoint estaba dormido (escala a cero) y el primer intento no alcanzó a responder a tiempo. El cliente esperó y reintentó sin que el
+usuario hiciera nada, y el segundo intento obtuvo la predicción. Es el caso "endpoint despertando" de la tabla de arriba.
+
+![Detalle técnico: JSON enviado, HTTP 200 en el segundo intento y respuesta cruda](docs/capturas/app_detalle_tecnico.png)
+
+<<CAPTURA: app en el modo "Error HTTP: la API rechaza la entrada", mostrando el mensaje del 400>>
+
+<<CAPTURA: app en el modo "Tiempo de espera agotado" o "Respuesta inválida", mostrando el aviso sin predicción>>
 
 ## Orquestación
 
@@ -287,7 +353,9 @@ Un **Job de Lakeflow** (`vuelos-medallion`) ejecuta tres tareas de notebook enca
 con un horario semanal de baja frecuencia (por la cuota diaria de cómputo; se pausa después de la demo). Como bronce es incremental,
 una nueva ejecución no duplica datos.
 
-<<CAPTURA: grafo del Job y una ejecución exitosa en la pestaña Runs>>
+Ejecución completa exitosa de las tres tareas (2 min 31 s):
+
+![Job vuelos-medallion: ejecución exitosa de bronce, plata y oro](docs/capturas/job_corrida.png)
 
 ## Cómo reproducirlo
 
@@ -327,4 +395,4 @@ y una capa de resultados que consulta un modelo de ML publicado (secciones 3 y 4
 
 * Datos: U.S. Department of Transportation, Bureau of Transportation Statistics (BTS), "Reporting Carrier On-Time Performance (1987-present)", https://www.transtats.bts.gov/ (datos públicos del gobierno de EE.UU.).
 * Plataforma: Databricks Free Edition. Librerías: PySpark, MLflow, scikit-learn, Streamlit.
-* Proyecto desarrollado por <<TU NOMBRE>> con apoyo de asistentes de IA para código y documentación.
+* Proyecto desarrollado por Hector Moran con apoyo de asistentes de IA para código y documentación.
