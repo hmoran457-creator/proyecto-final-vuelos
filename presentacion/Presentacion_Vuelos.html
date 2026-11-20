@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>¿Se retrasará mi vuelo?</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=IBM+Plex+Sans:wght@400;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Concepto: tablero de salidas de aeropuerto. Una idea por diapositiva: título corto + una imagen o diagrama.
+   El tablero es oscuro en ambos temas; azul = a tiempo, naranja = retrasado (también difieren en claridad). */
+:root {
+  --bg: #edf0f3;
+  --panel: #ffffff;
+  --ink: #121c27;
+  --muted: #4a5868;
+  --line: #cfd7e0;
+  --board: #141c26;
+  --flap: #1f2a37;
+  --flap-edge: #0b1118;
+  --board-ink: #f3f6f9;
+  --board-muted: #8c9aab;
+  --amber: #f2a516;      /* letras del tablero (sobre oscuro) */
+  --amber-ink: #8f5400;  /* el mismo acento, legible sobre claro */
+  --ontime: #1f5fa8;
+  --late: #c2410c;
+  --ok: #1d7a4c;
+  --on-color: #ffffff;  /* texto sobre barras de color */
+  --display: "Big Shoulders Display", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b1017; --panel: #131c27; --ink: #e8edf3; --muted: #9eadbd; --line: #2a394b;
+    --board: #05090e; --flap: #121b26; --flap-edge: #020406; --board-ink: #f3f6f9; --board-muted: #8c9aab;
+    --amber: #ffb627; --amber-ink: #ffbf47; --ontime: #73abee; --late: #ff8c52; --ok: #4fc58c; --on-color: #0b1017;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b1017; --panel: #131c27; --ink: #e8edf3; --muted: #9eadbd; --line: #2a394b;
+  --board: #05090e; --flap: #121b26; --flap-edge: #020406; --board-ink: #f3f6f9; --board-muted: #8c9aab;
+  --amber: #ffb627; --amber-ink: #ffbf47; --ontime: #73abee; --late: #ff8c52; --ok: #4fc58c; --on-color: #0b1017;
+  color-scheme: dark;
+}
+
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--ink); margin: 0; font-family: var(--body); font-size: clamp(15px, 0.5vw + 10px, 21px); line-height: 1.45; }
+
+/* ---------- Diapositivas ---------- */
+.slide {
+  min-height: 100vh; min-height: 100dvh; box-sizing: border-box; display: grid; align-content: center;
+  padding-block: clamp(28px, 6vh, 72px) clamp(76px, 10vh, 104px);
+  padding-left: max(16px, 4vw, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, 4vw, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--line);
+}
+.wrap { width: min(1440px, 100%); margin-inline: auto; display: grid; gap: clamp(16px, 3vh, 34px); min-width: 0; }
+.head { display: grid; gap: 0.55rem; }
+.eyebrow { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.9rem; font-family: var(--mono); font-size: 0.74em; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin: 0; }
+.eyebrow .gate { color: var(--amber-ink); font-weight: 700; }
+.pts { border: 1.5px solid var(--amber-ink); color: var(--amber-ink); border-radius: 999px; padding: 0.1em 0.75em; letter-spacing: 0.08em; font-weight: 700; }
+h1, h2 { font-family: var(--display); font-weight: 900; text-transform: uppercase; letter-spacing: 0.01em; margin: 0; line-height: 0.95; text-wrap: balance; }
+h1 { font-size: clamp(2.8rem, 5.6vw, 6.6rem); line-height: 1.04; }
+h2 { font-size: clamp(2.1rem, 4.4vw, 4.2rem); }
+h3 { font-family: var(--display); font-weight: 900; text-transform: uppercase; letter-spacing: 0.03em; font-size: 1.5em; margin: 0; line-height: 1; }
+p { margin: 0; }
+.lead { font-size: 1.2em; color: var(--muted); max-width: 52ch; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.late { color: var(--late); }
+.amb { color: var(--amber-ink); }
+.small { font-size: 0.86em; color: var(--muted); }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: clamp(18px, 3vw, 48px); align-items: center; }
+.cols > * { min-width: 0; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: clamp(14px, 1.8vw, 26px); min-width: 0; }
+.shot { display: block; width: 100%; height: auto; max-width: 100%; border-radius: 10px; border: 1px solid var(--line); background: var(--board); }
+figure { margin: 0; display: grid; gap: 0.4rem; min-width: 0; }
+figcaption { font-size: 0.8em; color: var(--muted); font-family: var(--mono); }
+
+/* ---------- Tablero split-flap (se ajusta al ancho de su caja: nunca se corta) ---------- */
+.board {
+  container-type: inline-size;
+  background: var(--board); border-radius: 14px; padding: clamp(12px, 1.6vw, 22px);
+  display: grid; gap: clamp(6px, 0.8vw, 10px); color: var(--board-ink);
+  box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.6); min-width: 0;
+}
+.board-head, .row { display: grid; grid-template-columns: auto auto auto; justify-content: space-between; gap: 2cqi; align-items: center; }
+.board-head { font-family: var(--mono); font-size: 0.66em; letter-spacing: 0.18em; color: var(--board-muted); }
+.board-head span:nth-child(2), .row > :nth-child(2) { justify-self: end; }
+.cells { display: flex; gap: 0.35cqi; }
+.cell {
+  font-family: var(--mono); font-weight: 700; font-size: clamp(10px, 2.55cqi, 24px);
+  width: 1.12em; height: 1.55em; display: grid; place-items: center; flex: none; border-radius: 3px; color: var(--amber);
+  background: linear-gradient(var(--flap) 0 49%, var(--flap-edge) 49% 51%, var(--flap) 51%);
+}
+.cell.sp { background: transparent; width: 0.45em; }
+.row .estado .cell { color: #6fd39f; }
+
+/* ---------- Portada ---------- */
+.hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(20px, 4vw, 64px); align-items: center; }
+@media (max-width: 980px) { .hero-grid { grid-template-columns: 1fr; } }
+.hero h1 .q { color: var(--late); }
+.byline { font-family: var(--mono); font-size: 0.8em; color: var(--muted); letter-spacing: 0.06em; }
+.avion { width: clamp(64px, 7vw, 110px); height: auto; color: var(--amber-ink); }
+.avion path { fill: currentColor; }
+
+/* ---------- Chips de variables ---------- */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font-family: var(--mono); font-size: 0.78em; border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 0.25em 0.8em; }
+.chip.no { border-color: var(--late); color: var(--late); text-decoration: line-through; }
+
+/* ---------- Diagramas Mermaid ---------- */
+.diagrama { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: clamp(10px, 1.4vw, 20px); min-width: 0; overflow-x: auto; }
+.diagrama svg { display: block; margin-inline: auto; max-width: 100%; height: auto; }
+.diagrama .respaldo { font-family: var(--mono); font-size: 0.85em; color: var(--muted); }
+
+/* ---------- Números grandes ---------- */
+.nums { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: clamp(10px, 1.4vw, 20px); }
+.num-card { border-top: 6px solid var(--c, var(--line)); display: grid; gap: 0.25rem; align-content: start; }
+.num-card .big { font-family: var(--display); font-weight: 900; font-size: clamp(2.2rem, 3.6vw, 3.6rem); line-height: 1; font-variant-numeric: tabular-nums; }
+.nums.pila { grid-template-columns: 1fr; }
+.pila .num-card { border-top: 0; border-left: 6px solid var(--c); grid-template-columns: auto 1fr; align-items: center; column-gap: 1rem; }
+.pila .num-card .big { text-align: right; }
+.pila .num-card .small { grid-column: 1 / -1; }
+.cols.app-cols { grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr); }
+@media (max-width: 900px) { .cols.app-cols { grid-template-columns: 1fr; } }
+.c-bronce { --c: #a8662f; }
+.c-plata { --c: #8795a6; }
+.c-oro { --c: #d39b12; }
+.c-late { --c: var(--late); }
+
+/* ---------- Métrica ---------- */
+.split { display: flex; height: 3em; border-radius: 8px; overflow: hidden; font-family: var(--mono); font-weight: 700; color: var(--on-color); }
+.split div { display: flex; align-items: center; padding-inline: 0.8em; white-space: nowrap; }
+.split .s-late { background: var(--late); width: 19.5%; }
+.split .s-on { background: var(--ontime); flex: 1; }
+.bars { display: grid; gap: 0.9rem; }
+.bar-row { display: grid; grid-template-columns: minmax(8.5em, 1fr) minmax(0, 2.4fr) 3.4em; gap: 0.8rem; align-items: center; }
+.track { height: 1.6em; background: color-mix(in srgb, var(--line) 60%, transparent); border-radius: 6px; overflow: hidden; }
+.fill { height: 100%; width: calc(var(--v) * 200%); transform-origin: left; background: var(--muted); border-radius: 6px; }
+.fill.model { background: var(--amber-ink); }
+.bar-row .val { font-family: var(--mono); font-weight: 700; text-align: right; }
+.axis { display: grid; grid-template-columns: minmax(8.5em, 1fr) minmax(0, 2.4fr) 3.4em; gap: 0.8rem; }
+.axis div:nth-child(2) { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 0.72em; color: var(--muted); }
+
+/* ---------- Pruebas en vivo ---------- */
+.tests { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.test { border: 1px solid var(--line); border-radius: 8px; padding: 0.45em 0.6em; display: grid; gap: 0.1rem; background: var(--panel); }
+.test b { font-family: var(--mono); font-size: 0.95em; }
+.test b.c200 { color: var(--ok); }
+.test b.c400 { color: var(--late); }
+.test span { font-size: 0.76em; color: var(--muted); line-height: 1.25; }
+
+/* ---------- Cierre ---------- */
+.final-list { display: grid; gap: 0; }
+.final-list div { display: grid; grid-template-columns: 5.2em 1fr; gap: 1rem; align-items: baseline; border-bottom: 1px solid var(--line); padding-block: 0.55em; }
+.final-list b { font-family: var(--display); font-weight: 900; text-transform: uppercase; font-size: 1.4em; color: var(--amber-ink); }
+.repo { font-family: var(--mono); word-break: break-all; }
+.repo a { color: var(--ink); }
+
+/* ---------- Navegación ---------- */
+.nav {
+  position: fixed; z-index: 20; display: flex; gap: 6px; align-items: center;
+  right: calc(max(12px, 1.5vw) + env(safe-area-inset-right, 0px));
+  bottom: calc(max(12px, 1.5vh) + env(safe-area-inset-bottom, 0px));
+  background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 5px;
+  box-shadow: 0 8px 24px -14px rgba(0, 0, 0, 0.5);
+}
+.nav button { font: inherit; font-size: 0.85em; color: var(--ink); background: transparent; border: 0; border-radius: 999px; min-width: 2.6em; height: 2.6em; cursor: pointer; display: grid; place-items: center; padding: 0 0.6em; }
+.nav button:hover { background: color-mix(in srgb, var(--line) 60%, transparent); }
+.nav button:focus-visible { outline: 2px solid var(--amber-ink); outline-offset: 2px; }
+.nav svg { width: 1.15em; height: 1.15em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+#contador { font-family: var(--mono); font-size: 0.8em; color: var(--muted); min-width: 4.2em; text-align: center; }
+.progreso { position: fixed; z-index: 21; top: env(safe-area-inset-top, 0px); left: 0; right: 0; height: 4px; }
+.progreso div { height: 100%; background: var(--amber); transform-origin: left; transform: scaleX(0.125); transition: transform 0.4s ease; }
+
+/* ---------- Movimiento: el estado normal es el final; al activarse la diapositiva, cada pieza entra desde "from" ---------- */
+@keyframes subir { from { opacity: 0; transform: translateY(18px); } }
+@keyframes crecer { from { transform: scaleX(0); } }
+@keyframes despegar { from { opacity: 0; transform: translate(-40px, 20px) rotate(-8deg); } }
+.activa .e { animation: subir 0.6s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--i, 0) * 120ms); }
+.activa .fill { animation: crecer 0.9s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(400ms + var(--i, 0) * 180ms); }
+.activa .test { animation: subir 0.4s ease-out both; animation-delay: calc(300ms + var(--i, 0) * 80ms); }
+.activa .avion { animation: despegar 1s cubic-bezier(.2, .8, .2, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .activa *, .activa { animation: none !important; }
+  .progreso div { transition: none; }
+  .diagrama svg .edge-animation-slow, .diagrama svg .edge-animation-fast { animation: none !important; }
+}
+@media (max-width: 700px) { .tests { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+</style>
+
+<div class="progreso" aria-hidden="true"><div id="barra"></div></div>
+
+<!-- 1. Portada -->
+<section class="slide hero" id="portada" aria-label="Portada">
+  <div class="wrap">
+    <div class="hero-grid">
+      <div class="head">
+        <svg class="avion" viewBox="0 0 64 64" aria-hidden="true"><path d="M60 30.5c0-1.9-1.6-3.5-3.5-3.5H40.8L26.4 6.4A2 2 0 0 0 24.8 5.5h-4.3a1 1 0 0 0-.9 1.4L27.6 27H14.2l-5.6-7.2a2 2 0 0 0-1.6-.8H4a1 1 0 0 0-1 1.3l3.6 11.7-3.6 11.7A1 1 0 0 0 4 45h3a2 2 0 0 0 1.6-.8l5.6-7.2h13.4l-8 20.1a1 1 0 0 0 .9 1.4h4.3a2 2 0 0 0 1.6-.9L40.8 37h15.7c1.9 0 3.5-1.6 3.5-3.5z"/></svg>
+        <p class="eyebrow e" style="--i:0"><span class="gate">Proyecto final</span><span>Big Data · Databricks</span></p>
+        <h1 class="e" style="--i:1">¿Se retrasará mi <span class="q">vuelo?</span></h1>
+        <p class="lead e" style="--i:2">Predecir si un vuelo llega 15 minutos tarde, con datos que conoces antes de despegar.</p>
+        <p class="byline e" style="--i:3">Hector Moran · Noviembre de 2026</p>
+      </div>
+      <div class="board e" style="--i:2" role="table" aria-label="Resumen del proyecto">
+        <div class="board-head" role="row"><span role="columnheader">CONCEPTO</span><span role="columnheader">CIFRA</span><span role="columnheader">ESTADO</span></div>
+        <div class="row" role="row"><span role="cell" data-flap="VUELOS 2024"></span><span role="cell" data-flap="7079061"></span><span role="cell" class="estado" data-flap="CARGADO"></span></div>
+        <div class="row" role="row"><span role="cell" data-flap="LIMPIOS"></span><span role="cell" data-flap="7079036"></span><span role="cell" class="estado" data-flap="PLATA"></span></div>
+        <div class="row" role="row"><span role="cell" data-flap="F1 PRUEBA"></span><span role="cell" data-flap="0.392"></span><span role="cell" class="estado" data-flap="MODELO"></span></div>
+        <div class="row" role="row"><span role="cell" data-flap="PRUEBAS API"></span><span role="cell" data-flap="9 DE 9"></span><span role="cell" class="estado" data-flap="PASA"></span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 2. Arquitectura -->
+<section class="slide" id="arquitectura" aria-label="Arquitectura">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow e" style="--i:0"><span class="gate">Arquitectura</span><span>7,079,061 vuelos · 12 meses de 2024</span></p>
+      <h2 class="e" style="--i:1">De 12 archivos a una app</h2>
+    </div>
+    <div class="diagrama e" style="--i:2" data-diagrama="arquitectura" role="img" aria-label="Flujo: archivos del BTS, volumen, bronce, plata, oro, modelo, endpoint y app; un Job orquesta bronce, plata y oro">
+      <p class="respaldo">BTS → Volumen → Bronce → Plata → Oro → Modelo → Endpoint → App · Job: bronce, plata y oro</p>
+    </div>
+    <div class="chips e" style="--i:3" aria-label="Variables del modelo">
+      <span class="chip">mes</span><span class="chip">día</span><span class="chip">hora de salida</span><span class="chip">hora de llegada</span><span class="chip">distancia</span><span class="chip">duración</span><span class="chip">aerolínea</span><span class="chip">origen</span><span class="chip">destino</span>
+      <span class="chip no" title="Fuga de información: no se conoce al comprar el boleto">retraso de salida</span>
+    </div>
+  </div>
+</section>
+
+<!-- 3. Medallion -->
+<section class="slide" id="capas" aria-label="Arquitectura medallion">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow e" style="--i:0"><span class="gate">Limpieza y transformación</span><span class="pts">Criterio 1 · 35 pts</span></p>
+      <h2 class="e" style="--i:1">Tres capas medallion</h2>
+    </div>
+    <div class="cols">
+      <div class="nums pila">
+        <div class="panel num-card c-bronce e" style="--i:2"><h3>Bronce</h3><div class="big" data-contar="7079061">7,079,061</div><span class="small">crudo, como texto</span></div>
+        <div class="panel num-card c-plata e" style="--i:3"><h3>Plata</h3><div class="big" data-contar="7079036">7,079,036</div><span class="small">limpio y tipado</span></div>
+        <div class="panel num-card c-oro e" style="--i:4"><h3>Oro</h3><div class="big" data-contar="6965238">6,965,238</div><span class="small">listo para el modelo</span></div>
+      </div>
+      <figure class="e" style="--i:5">
+        <img class="shot" src="capturas/catalogo_tablas.png" width="1066" height="657" alt="Las 8 tablas del esquema vuelos en Unity Catalog">
+        <figcaption>Las 8 tablas en Unity Catalog · un Job las corre en 2 min 31 s</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- 4. Plata -->
+<section class="slide" id="plata" aria-label="Decisiones de limpieza">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow e" style="--i:0"><span class="gate">Bitácora de calidad</span><span class="pts">Criterio 1 · 35 pts</span></p>
+      <h2 class="e" style="--i:1">Solo 25 filas salen, cada una con su regla</h2>
+    </div>
+    <div class="diagrama e" style="--i:2" data-diagrama="plata" role="img" aria-label="Bronce 7,079,061; tipos 0; nulos críticos menos 2; duplicados 0; imposibles menos 23; plata 7,079,036">
+      <p class="respaldo">Bronce 7,079,061 → Tipos 0 → Nulos −2 → Duplicados 0 → Imposibles −23 → Plata 7,079,036</p>
+    </div>
+    <div class="nums">
+      <div class="panel num-card e" style="--i:3"><div class="big">28 M</div><span>causas de retraso vacías <b>→ 0</b><br><span class="small">vacío = no hubo retraso</span></span></div>
+      <div class="panel num-card c-late e" style="--i:4"><div class="big">113,813</div><span>vuelos cancelados <b>no se imputan</b><br><span class="small">sería inventar la respuesta</span></span></div>
+      <div class="panel num-card c-late e" style="--i:5"><div class="big">9.6 %</div><span>outliers por IQR <b>no se borran</b><br><span class="small">son los retrasos reales</span></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 5. Métrica -->
+<section class="slide" id="metrica" aria-label="Problema y métrica">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow e" style="--i:0"><span class="gate">Problema y métrica</span><span class="pts">Criterio 2 · 10 pts</span></p>
+      <h2 class="e" style="--i:1">Pocos retrasos: se mide con F1</h2>
+    </div>
+    <div class="cols">
+      <div class="head e" style="--i:2">
+        <div class="split" role="img" aria-label="19.5 por ciento retrasados, 80.5 por ciento a tiempo"><div class="s-late">19.5 %</div><div class="s-on">80.5 % a tiempo</div></div>
+        <p class="lead">Decir siempre <b>"a tiempo"</b> acierta 80.5 % y nunca detecta un retraso: <b>F1 = 0</b>.</p>
+      </div>
+      <div class="panel e" style="--i:3">
+        <div class="bars" role="img" aria-label="F1 en 77 días de prueba: modelo 0.392, siempre retrasado 0.326, siempre a tiempo 0">
+          <h3>F1 en 77 días nunca vistos</h3>
+          <div class="bar-row"><span><b>Modelo</b></span><div class="track"><div class="fill model" style="--v:0.392;--i:0"></div></div><span class="val">0.392</span></div>
+          <div class="bar-row"><span>Siempre "retrasado"</span><div class="track"><div class="fill" style="--v:0.326;--i:1"></div></div><span class="val">0.326</span></div>
+          <div class="bar-row"><span>Siempre "a tiempo"</span><div class="track"><div class="fill" style="--v:0;--i:2"></div></div><span class="val">0.000</span></div>
+          <div class="axis" aria-hidden="true"><div></div><div><span>0</span><span>0.25</span><span>0.50</span></div><div></div></div>
+          <p class="small">Detecta el <b>57 %</b> de los retrasos · ROC-AUC 0.673</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 6. API -->
+<section class="slide" id="api" aria-label="Publicación del modelo">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow e" style="--i:0"><span class="gate">Publicación del modelo</span><span class="pts">Criterio 3 · 25 pts</span></p>
+      <h2 class="e" style="--i:1">Una API que rechaza lo absurdo</h2>
+    </div>
+    <div class="diagrama e" style="--i:2" data-diagrama="api" role="img" aria-label="Una petición pasa por la firma de MLflow y las reglas de negocio; si falla alguna, responde 400; si pasa, el modelo responde 200 con la probabilidad">
+      <p class="respaldo">Petición → ¿tipos correctos? no: 400 → ¿reglas cumplidas? no: 400 → Modelo → 200 probabilidad</p>
+    </div>
+    <div class="cols">
+      <div class="tests" aria-label="9 pruebas en vivo, las 9 pasan">
+        <div class="test" style="--i:0"><b class="c200">200</b><span>vuelo válido</span></div>
+        <div class="test" style="--i:1"><b class="c200">200</b><span>minúsculas y espacios</span></div>
+        <div class="test" style="--i:2"><b class="c400">400</b><span>mes = "julio"</span></div>
+        <div class="test" style="--i:3"><b class="c400">400</b><span>mes = 13</span></div>
+        <div class="test" style="--i:4"><b class="c400">400</b><span>aerolínea ZZ</span></div>
+        <div class="test" style="--i:5"><b class="c400">400</b><span>aeropuerto XXX</span></div>
+        <div class="test" style="--i:6"><b class="c400">400</b><span>falta destino</span></div>
+        <div class="test" style="--i:7"><b class="c400">400</b><span>origen = destino</span></div>
+        <div class="test" style="--i:8"><b class="c400">400</b><span>4,000 mph</span></div>
+      </div>
+      <figure class="e" style="--i:3">
+        <img class="shot" src="capturas/endpoint_ready.png" width="492" height="70" alt="Endpoint vuelos-retrasos en estado Ready">
+        <figcaption>9 de 9 pruebas en vivo · documentada en OpenAPI</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- 7. App -->
+<section class="slide" id="app" aria-label="La aplicación">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow e" style="--i:0"><span class="gate">Aplicación de consulta</span><span class="pts">Criterio 4 · 30 pts</span></p>
+      <h2 class="e" style="--i:1">La app pregunta, no adivina</h2>
+    </div>
+    <div class="cols app-cols">
+      <figure class="e" style="--i:2">
+        <img class="shot" src="capturas/app_prediccion.png" width="722" height="706" alt="La app muestra 45.7 % de probabilidad de retraso para un vuelo DL de Atlanta a Los Ángeles">
+        <figcaption>Consulta real: 2 intentos, 32 s, respuesta 200</figcaption>
+      </figure>
+      <div class="diagrama e" style="--i:3" data-diagrama="app" role="img" aria-label="La app manda la consulta al endpoint: con 200 muestra la probabilidad; con 400 un mensaje claro; con 504 o tiempo agotado reintenta; con respuesta inválida avisa sin predicción">
+        <p class="respaldo">App → Endpoint · 200: probabilidad · 400: mensaje claro · 504 o tiempo agotado: reintenta · respuesta inválida: aviso</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 8. Cierre -->
+<section class="slide final" id="cierre" aria-label="Cierre">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow e" style="--i:0"><span class="gate">Llegada</span><span>Resumen</span></p>
+      <h2 class="e" style="--i:1">De 7 millones de filas a una respuesta</h2>
+    </div>
+    <div class="final-list">
+      <div class="e" style="--i:2"><b>Datos</b><span>Medallion con 7 M de registros y un Job que lo orquesta</span></div>
+      <div class="e" style="--i:3"><b>Modelo</b><span>F1 0.392 en días nunca vistos, sobre la línea base</span></div>
+      <div class="e" style="--i:4"><b>API</b><span>Endpoint validado, documentado y 9 de 9 pruebas</span></div>
+      <div class="e" style="--i:5"><b>App</b><span>Consulta el endpoint, reintenta y avisa</span></div>
+    </div>
+    <p class="small e" style="--i:6">Siguiente paso: agregar el clima.</p>
+    <p class="repo e" style="--i:7"><a href="https://github.com/hmoran457-creator/proyecto-final-vuelos">github.com/hmoran457-creator/proyecto-final-vuelos</a></p>
+  </div>
+</section>
+
+<nav class="nav" aria-label="Navegación de diapositivas">
+  <button id="btnPrev" type="button" aria-label="Diapositiva anterior"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+  <span id="contador" aria-live="polite">1 / 8</span>
+  <button id="btnNext" type="button" aria-label="Diapositiva siguiente"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button>
+  <button id="btnTheme" type="button" aria-label="Cambiar entre tema claro y oscuro"><svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+  <button id="btnFull" type="button" aria-label="Pantalla completa"><svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+</nav>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const slides = [...document.querySelectorAll(".slide")];
+  const quieto = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let current = 0;
+
+  // ---------- Tema (se recuerda en este navegador si se puede) ----------
+  try { const t = localStorage.getItem("tema-vuelos"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch {}
+
+  // ---------- Diagramas ----------
+  const DIAGRAMAS = {
+    arquitectura: `flowchart LR
+      A["BTS<br/>12 zips"] e1@--> C
+      subgraph J["Job · 2 min 31 s"]
+        direction LR
+        C["Bronce"] e2@--> D["Plata"]
+        D e3@--> E["Oro"]
+      end
+      E e4@--> F["Modelo<br/>MLflow"]
+      F e5@--> G["Endpoint<br/>REST"]
+      G e6@--> H["App<br/>Streamlit"]
+      e1@{ animation: slow }
+      e2@{ animation: slow }
+      e3@{ animation: slow }
+      e4@{ animation: slow }
+      e5@{ animation: slow }
+      e6@{ animation: slow }
+      class C,D,E capa
+      class F,G,H ml
+      class J job`,
+    plata: `flowchart LR
+      B["Bronce<br/><b>7,079,061</b>"] e1@--> T["Tipos<br/>0"]
+      T e2@--> N["Nulos críticos<br/>-2"]
+      N e3@--> D["Duplicados<br/>0"]
+      D e4@--> I["Imposibles<br/>-23"]
+      I e5@--> P["Plata<br/><b>7,079,036</b>"]
+      e1@{ animation: slow }
+      e2@{ animation: slow }
+      e3@{ animation: slow }
+      e4@{ animation: slow }
+      e5@{ animation: slow }
+      class B,P capa
+      class N,I bad`,
+    api: `flowchart LR
+      P(["Petición"]) e1@--> F{"¿Tipos y<br/>columnas?"}
+      F -->|no| X1["400<br/>firma MLflow"]
+      F e2@-->|sí| R{"¿Reglas de<br/>negocio?"}
+      R -->|no| X2["400<br/>Entrada inválida"]
+      R e3@-->|sí| M["Modelo"]
+      M e4@--> OK(["200<br/>probabilidad"])
+      e1@{ animation: slow }
+      e2@{ animation: slow }
+      e3@{ animation: slow }
+      e4@{ animation: slow }
+      class X1,X2 bad
+      class OK good
+      class M ml`,
+    app: `flowchart LR
+      A(["App"]) e1@-->|consulta| E["Endpoint"]
+      E e2@-->|200| OK(["Probabilidad"])
+      E -->|400| M["Mensaje claro"]
+      E e3@-->|504 o tiempo| R["Reintenta<br/>2 s, 4 s, 8 s"]
+      R e4@--> E
+      E -->|respuesta inválida| V["Aviso<br/>sin predicción"]
+      e1@{ animation: slow }
+      e2@{ animation: slow }
+      e3@{ animation: fast }
+      e4@{ animation: fast }
+      class OK good
+      class M,V bad
+      class R capa`,
+  };
+  let nDibujo = 0;
+  async function dibujar() {
+    if (!window.mermaid) return;   // sin internet: queda el texto de respaldo
+    const css = getComputedStyle(document.documentElement);
+    const t = (n) => css.getPropertyValue(n).trim();
+    mermaid.initialize({
+      startOnLoad: false, theme: "base", securityLevel: "strict",
+      fontFamily: getComputedStyle(document.body).fontFamily,
+      themeVariables: {
+        fontSize: "20px", background: t("--panel"), clusterBkg: t("--bg"), clusterBorder: t("--amber-ink"),
+        primaryColor: t("--panel"), primaryTextColor: t("--ink"), primaryBorderColor: t("--line"),
+        lineColor: t("--muted"), textColor: t("--ink"), edgeLabelBackground: t("--panel"),
+      },
+      flowchart: { curve: "basis", htmlLabels: true, useMaxWidth: true, padding: 12 },
+    });
+    const clases = `
+      classDef capa stroke:${t("--amber-ink")},stroke-width:2.5px,color:${t("--ink")},fill:${t("--panel")}
+      classDef ml stroke:${t("--ontime")},stroke-width:2.5px,color:${t("--ink")},fill:${t("--panel")}
+      classDef bad stroke:${t("--late")},stroke-width:2.5px,color:${t("--late")},fill:${t("--panel")}
+      classDef good stroke:${t("--ok")},stroke-width:2.5px,color:${t("--ok")},fill:${t("--panel")}
+      classDef job stroke:${t("--amber-ink")},stroke-dasharray:5 4,color:${t("--ink")},fill:${t("--bg")}`;
+    for (const caja of document.querySelectorAll("[data-diagrama]")) {
+      const nombre = caja.dataset.diagrama;
+      try {
+        const { svg } = await mermaid.render(`mmd-${nombre}-${nDibujo++}`, DIAGRAMAS[nombre] + clases);
+        caja.innerHTML = svg;
+      } catch (error) {
+        console.warn("No se pudo dibujar el diagrama", nombre, error);
+      }
+    }
+    ajustar();
+  }
+
+  $("btnTheme").addEventListener("click", () => {
+    const root = document.documentElement;
+    const oscuro = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    root.dataset.theme = oscuro ? "light" : "dark";
+    try { localStorage.setItem("tema-vuelos", root.dataset.theme); } catch {}
+    dibujar();
+  });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { if (!document.documentElement.dataset.theme) dibujar(); });
+
+  // ---------- Tablero split-flap: el texto final ya queda escrito; al llegar se "voltea" ----------
+  const LETRAS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  document.querySelectorAll("[data-flap]").forEach((celda) => {
+    const texto = celda.dataset.flap;
+    const mostrado = /^\d{4,}$/.test(texto) ? Number(texto).toLocaleString("en-US") : texto;
+    celda.classList.add("cells");
+    celda.setAttribute("aria-label", mostrado);
+    celda.textContent = "";
+    for (const ch of mostrado) {
+      const s = document.createElement("span");
+      s.className = ch === " " ? "cell sp" : "cell";
+      s.textContent = ch === " " ? "" : ch;
+      s.dataset.final = ch;
+      s.setAttribute("aria-hidden", "true");
+      celda.appendChild(s);
+    }
+  });
+  function voltear(seccion) {
+    if (quieto()) return;
+    seccion.querySelectorAll(".cell:not(.sp)").forEach((s, i) => {
+      const final = s.dataset.final;
+      if (!/[A-Z0-9]/.test(final)) return;
+      let vueltas = 6 + (i % 9);
+      const reloj = setInterval(() => {
+        if (vueltas-- <= 0) { s.textContent = final; clearInterval(reloj); return; }
+        s.textContent = LETRAS[Math.floor(Math.random() * LETRAS.length)];
+      }, 55);
+    });
+  }
+
+  // ---------- Contadores: el número final ya está escrito; al llegar sube desde cero ----------
+  function contar(el) {
+    if (quieto()) return;
+    const meta = Number(el.dataset.contar), inicio = performance.now(), dur = 1100;
+    // Si la pestaña pierde el foco a media cuenta, el número final se escribe de todos modos
+    setTimeout(() => { el.textContent = meta.toLocaleString("en-US"); }, dur + 150);
+    const paso = (ahora) => {
+      const p = Math.min(1, (ahora - inicio) / dur);
+      el.textContent = Math.round(meta * (1 - Math.pow(1 - p, 3))).toLocaleString("en-US");
+      if (p < 1) requestAnimationFrame(paso);
+    };
+    requestAnimationFrame(paso);
+  }
+
+  function activar(s) {
+    if (s.classList.contains("activa")) return;
+    s.classList.add("activa");
+    voltear(s);
+    s.querySelectorAll("[data-contar]").forEach(contar);
+  }
+  function actualizar() {
+    let idx = 0;
+    slides.forEach((s, i) => {
+      const r = s.getBoundingClientRect();
+      if (r.top <= innerHeight * 0.45) idx = i;
+      if (r.top < innerHeight * 0.75 && r.bottom > innerHeight * 0.2) activar(s);
+    });
+    current = idx;
+    $("contador").textContent = `${current + 1} / ${slides.length}`;
+    $("barra").style.transform = `scaleX(${(current + 1) / slides.length})`;
+  }
+  let pendiente = false;
+  addEventListener("scroll", () => {
+    if (pendiente) return;
+    pendiente = true;
+    requestAnimationFrame(() => { pendiente = false; actualizar(); });
+  }, { passive: true });
+
+  // ---------- En pantallas grandes, una diapositiva más alta que la pantalla se reduce (hasta 70 %) ----------
+  function ajustar() {
+    const wraps = slides.map((s) => s.querySelector(".wrap"));
+    wraps.forEach((w) => { w.style.zoom = ""; });
+    if (innerWidth >= 900) {
+      slides.forEach((s, i) => {
+        const cs = getComputedStyle(s);
+        const disponible = innerHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - 6;
+        let z = 1;
+        for (let vuelta = 0; vuelta < 3; vuelta++) {
+          const alto = wraps[i].getBoundingClientRect().height;
+          if (alto <= disponible + 1) break;
+          const nuevo = Math.max(0.7, (z * disponible) / alto);
+          if (nuevo >= z - 0.001) break;
+          z = nuevo;
+          wraps[i].style.zoom = z.toFixed(3);
+        }
+      });
+    }
+    actualizar();
+  }
+  let espera;
+  addEventListener("resize", () => { clearTimeout(espera); espera = setTimeout(ajustar, 150); });
+
+  // ---------- Navegación ----------
+  const suave = () => (quieto() ? "auto" : "smooth");
+  const ir = (i) => slides[Math.max(0, Math.min(slides.length - 1, i))].scrollIntoView({ behavior: suave() });
+  function paso(dir) {
+    const r = slides[current].getBoundingClientRect();
+    if (dir > 0 && r.bottom > innerHeight + 8) return scrollBy({ top: Math.min(innerHeight * 0.85, r.bottom - innerHeight), behavior: suave() });
+    if (dir < 0 && r.top < -8) return scrollBy({ top: Math.max(-innerHeight * 0.85, r.top), behavior: suave() });
+    if (current + dir < 0 || current + dir >= slides.length) return;
+    ir(current + dir);
+  }
+  document.addEventListener("keydown", (e) => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    if (e.target.tagName === "BUTTON" && (e.key === " " || e.key === "Enter")) return;
+    const adelante = ["ArrowDown", "ArrowRight", "PageDown"].includes(e.key) || (e.key === " " && !e.shiftKey);
+    const atras = ["ArrowUp", "ArrowLeft", "PageUp"].includes(e.key) || (e.key === " " && e.shiftKey);
+    if (adelante) { e.preventDefault(); paso(1); }
+    if (atras) { e.preventDefault(); paso(-1); }
+    if (e.key === "Home") { e.preventDefault(); ir(0); }
+    if (e.key === "End") { e.preventDefault(); ir(slides.length - 1); }
+    if (e.key === "t" || e.key === "T") $("btnTheme").click();
+  });
+  $("btnNext").addEventListener("click", () => paso(1));
+  $("btnPrev").addEventListener("click", () => paso(-1));
+  if (!document.fullscreenEnabled) $("btnFull").hidden = true;
+  $("btnFull").addEventListener("click", () => {
+    const d = document;
+    (d.fullscreenElement ? d.exitFullscreen() : d.documentElement.requestFullscreen?.())?.catch?.(() => {});
+  });
+
+  // Un clic con el mouse no deja el foco en el botón: así la barra espaciadora siempre avanza
+  document.querySelector(".nav").addEventListener("mousedown", (e) => e.preventDefault());
+
+  ajustar();
+  document.fonts?.ready.then(ajustar);
+
+  // Mermaid 11.6 (versión fija, con verificación de integridad) se carga después de que la presentación ya funciona:
+  // dibuja los diagramas con flechas animadas. Sin internet se queda el texto de respaldo de cada diagrama.
+  const mermaidJs = document.createElement("script");
+  mermaidJs.src = "https://cdn.jsdelivr.net/npm/mermaid@11.6.0/dist/mermaid.min.js";
+  mermaidJs.integrity = "sha384-zkWMJO4sgpPUzyuOgDx8HB/K55glbAwajEpk1Go2NWRuPkPA/wIhoEJTuSkmOYrV";
+  mermaidJs.crossOrigin = "anonymous";
+  mermaidJs.onload = () => (document.fonts?.ready ?? Promise.resolve()).then(dibujar);
+  document.head.append(mermaidJs);
+})();
+</script>
