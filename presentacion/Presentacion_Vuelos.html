@@ -193,16 +193,17 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
   border-bottom: 1px solid var(--line); box-sizing: border-box;
 }
 .ruta-pista { position: relative; height: 100%; width: min(1440px, 100%); margin-inline: auto; }
-.ruta-fases { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(8, 1fr); height: 100%; }
+.ruta { --fases: 9; --media-fase: calc(50% / var(--fases)); }
+.ruta-fases { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(var(--fases), 1fr); height: 100%; }
 .ruta-fases li { display: grid; justify-items: center; align-content: center; gap: 4px; position: relative; z-index: 1; font-family: var(--mono); font-size: 0.6em; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .ruta-fases li::before { content: ""; width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--muted); background: var(--bg); box-sizing: border-box; }
 .ruta-fases li.hecha::before { border-color: var(--amber-ink); background: var(--amber-ink); }
 .ruta-fases li.actual { color: var(--amber-ink); font-weight: 700; }
 .ruta-fases li.actual::before { opacity: 0; }
-.ruta-linea, .ruta-hecha { position: absolute; top: calc(50% - 8px); height: 0; left: 6.25%; }
-.ruta-linea { right: 6.25%; border-top: 2px dashed var(--line); }
+.ruta-linea, .ruta-hecha { position: absolute; top: calc(50% - 8px); height: 0; left: var(--media-fase); }
+.ruta-linea { right: var(--media-fase); border-top: 2px dashed var(--line); }
 .ruta-hecha { width: 0; border-top: 2px solid var(--amber-ink); transition: width 0.6s cubic-bezier(.2, .8, .2, 1); }
-.ruta-avion { position: absolute; top: calc(50% - 8px); left: 6.25%; width: 22px; height: 22px; transform: translate(-50%, -50%); color: var(--amber-ink); transition: left 0.6s cubic-bezier(.2, .8, .2, 1); z-index: 2; }
+.ruta-avion { position: absolute; top: calc(50% - 8px); left: var(--media-fase); width: 22px; height: 22px; transform: translate(-50%, -50%); color: var(--amber-ink); transition: left 0.6s cubic-bezier(.2, .8, .2, 1); z-index: 2; }
 .ruta-avion path { fill: currentColor; }
 @media (max-width: 900px) { .ruta-fases li span { display: none; } .ruta-fases li { align-content: center; } }
 
@@ -238,6 +239,27 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
   .diagrama svg .edge-animation-slow, .diagrama svg .edge-animation-fast { animation: none !important; }
 }
 @media (max-width: 700px) { .tests { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------- Ilustración de gradient boosting (diapositiva del modelo) ---------- */
+.boosting { display: grid; gap: 0.6rem; }
+.boosting svg { width: 100%; height: auto; max-height: 24vh; display: block; overflow: visible; }
+#modelo .diagrama svg { max-height: 30vh; }
+#modelo .wrap { gap: clamp(10px, 2vh, 22px); }
+.boosting .arista { stroke: var(--line); stroke-width: 2.5; }
+.boosting .camino { stroke: var(--amber-ink); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; fill: none; stroke-dasharray: 200; stroke-dashoffset: 0; }
+.boosting .nodo { fill: var(--panel); stroke: var(--muted); stroke-width: 2.5; }
+.boosting .hoja-mas { fill: var(--late); }
+.boosting .hoja-menos { fill: var(--ontime); }
+.boosting .hoja-ej { stroke: var(--amber-ink); stroke-width: 4; }
+.boosting text { font-family: var(--mono); fill: var(--muted); font-size: 19px; }
+.boosting .op { fill: var(--ink); font-size: 34px; font-weight: 700; }
+.boosting .sigma { fill: var(--panel); stroke: var(--amber-ink); stroke-width: 3; }
+.boosting .sigma-t { fill: var(--amber-ink); font-size: 34px; font-weight: 700; }
+.boosting .res { fill: var(--amber-ink); font-size: 30px; font-weight: 700; }
+.boosting .arbol { transform-box: fill-box; transform-origin: center; }
+@keyframes trazo { from { stroke-dashoffset: 200; } }
+.activa .boosting .arbol { animation: subir 0.5s ease-out both; animation-delay: calc(500ms + var(--i, 0) * 450ms); }
+.activa .boosting .camino { animation: trazo 0.7s ease-out both; animation-delay: calc(850ms + var(--i, 0) * 450ms); }
 </style>
 
 <div class="ruta" aria-hidden="true">
@@ -246,7 +268,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
     <div class="ruta-hecha" id="rutaHecha"></div>
     <ol class="ruta-fases" id="rutaFases">
       <li><span>Embarque</span></li><li><span>Rodaje</span></li><li><span>Despegue</span></li><li><span>Ascenso</span></li>
-      <li><span>Crucero</span></li><li><span>Descenso</span></li><li><span>Aproximación</span></li><li><span>Aterrizaje</span></li>
+      <li><span>Crucero</span></li><li><span>Autopiloto</span></li><li><span>Descenso</span></li><li><span>Aproximación</span></li><li><span>Aterrizaje</span></li>
     </ol>
     <svg class="ruta-avion" id="rutaAvion" viewBox="0 0 64 64"><path d="M60 30.5c0-1.9-1.6-3.5-3.5-3.5H40.8L26.4 6.4A2 2 0 0 0 24.8 5.5h-4.3a1 1 0 0 0-.9 1.4L27.6 27H14.2l-5.6-7.2a2 2 0 0 0-1.6-.8H4a1 1 0 0 0-1 1.3l3.6 11.7-3.6 11.7A1 1 0 0 0 4 45h3a2 2 0 0 0 1.6-.8l5.6-7.2h13.4l-8 20.1a1 1 0 0 0 .9 1.4h4.3a2 2 0 0 0 1.6-.9L40.8 37h15.7c1.9 0 3.5-1.6 3.5-3.5z"/></svg>
   </div>
@@ -371,7 +393,64 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
   </div>
 </section>
 
-<!-- 6. API -->
+<!-- 6. El modelo -->
+<section class="slide" id="modelo" aria-label="Cómo funciona el modelo">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow e" style="--i:0"><span class="gate">El modelo</span><span>Gradient boosting · scikit-learn</span></p>
+      <h2 class="e" style="--i:1">Árboles que corrigen a los anteriores</h2>
+    </div>
+    <div class="diagrama e" style="--i:2" data-diagrama="modelo" role="img" aria-label="Un vuelo con 9 datos pasa por escalado, one-hot y target encoding; el gradient boosting da una probabilidad de 0.66; como es mayor o igual al umbral 0.4979, el vuelo se marca como retrasado">
+      <p class="respaldo">Vuelo (9 datos) → escalado · one-hot · target encoding → gradient boosting → probabilidad 0.66 → ¿≥ 0.4979? → retrasado</p>
+    </div>
+    <div class="panel boosting e" style="--i:3">
+      <svg viewBox="0 0 1000 232" role="img" aria-label="Ilustración: tres árboles de decisión en fila; cada uno corrige el error de los anteriores y la suma de sus hojas da la probabilidad">
+        <g class="arbol" style="--i:0">
+          <line class="arista" x1="130" y1="38" x2="60" y2="105"/><line class="arista" x1="130" y1="38" x2="200" y2="105"/>
+          <line class="arista" x1="60" y1="105" x2="25" y2="172"/><line class="arista" x1="60" y1="105" x2="95" y2="172"/>
+          <line class="arista" x1="200" y1="105" x2="165" y2="172"/><line class="arista" x1="200" y1="105" x2="235" y2="172"/>
+          <polyline class="camino" style="--i:0" points="130,38 200,105 165,172"/>
+          <circle class="nodo" cx="130" cy="38" r="14"/><circle class="nodo" cx="60" cy="105" r="14"/><circle class="nodo" cx="200" cy="105" r="14"/>
+          <rect class="hoja-menos" x="7" y="161" width="36" height="22" rx="5"/><rect class="hoja-menos" x="77" y="161" width="36" height="22" rx="5"/>
+          <rect class="hoja-mas hoja-ej" x="147" y="161" width="36" height="22" rx="5"/><rect class="hoja-mas" x="217" y="161" width="36" height="22" rx="5"/>
+          <text x="130" y="220" text-anchor="middle">Árbol 1</text>
+        </g>
+        <text class="op" x="270" y="117" text-anchor="middle">+</text>
+        <g class="arbol" style="--i:1">
+          <line class="arista" x1="410" y1="38" x2="340" y2="105"/><line class="arista" x1="410" y1="38" x2="480" y2="105"/>
+          <line class="arista" x1="340" y1="105" x2="305" y2="172"/><line class="arista" x1="340" y1="105" x2="375" y2="172"/>
+          <line class="arista" x1="480" y1="105" x2="445" y2="172"/><line class="arista" x1="480" y1="105" x2="515" y2="172"/>
+          <polyline class="camino" style="--i:1" points="410,38 340,105 375,172"/>
+          <circle class="nodo" cx="410" cy="38" r="14"/><circle class="nodo" cx="340" cy="105" r="14"/><circle class="nodo" cx="480" cy="105" r="14"/>
+          <rect class="hoja-menos" x="287" y="161" width="36" height="22" rx="5"/><rect class="hoja-mas hoja-ej" x="357" y="161" width="36" height="22" rx="5"/>
+          <rect class="hoja-menos" x="427" y="161" width="36" height="22" rx="5"/><rect class="hoja-mas" x="497" y="161" width="36" height="22" rx="5"/>
+          <text x="410" y="220" text-anchor="middle">Árbol 2: corrige</text>
+        </g>
+        <text class="op" x="550" y="117" text-anchor="middle">+</text>
+        <g class="arbol" style="--i:2">
+          <line class="arista" x1="690" y1="38" x2="620" y2="105"/><line class="arista" x1="690" y1="38" x2="760" y2="105"/>
+          <line class="arista" x1="620" y1="105" x2="585" y2="172"/><line class="arista" x1="620" y1="105" x2="655" y2="172"/>
+          <line class="arista" x1="760" y1="105" x2="725" y2="172"/><line class="arista" x1="760" y1="105" x2="795" y2="172"/>
+          <polyline class="camino" style="--i:2" points="690,38 760,105 795,172"/>
+          <circle class="nodo" cx="690" cy="38" r="14"/><circle class="nodo" cx="620" cy="105" r="14"/><circle class="nodo" cx="760" cy="105" r="14"/>
+          <rect class="hoja-mas" x="567" y="161" width="36" height="22" rx="5"/><rect class="hoja-menos" x="637" y="161" width="36" height="22" rx="5"/>
+          <rect class="hoja-mas" x="707" y="161" width="36" height="22" rx="5"/><rect class="hoja-menos hoja-ej" x="777" y="161" width="36" height="22" rx="5"/>
+          <text x="690" y="220" text-anchor="middle">Árbol 3: corrige más</text>
+        </g>
+        <g class="arbol" style="--i:3">
+          <text class="op" x="858" y="117" text-anchor="middle">+ … =</text>
+          <circle class="sigma" cx="950" cy="105" r="32"/>
+          <text class="sigma-t" x="950" y="117" text-anchor="middle">Σ</text>
+          <text class="res" x="950" y="182" text-anchor="middle">0.66</text>
+          <text x="950" y="220" text-anchor="middle">probabilidad</text>
+        </g>
+      </svg>
+      <p class="small">Ilustración: cada árbol aprende preguntas sobre las 9 variables. Hojas <span class="late">naranjas</span> suben la probabilidad y <span class="ontime">azules</span> la bajan; la línea dorada es el recorrido del vuelo de ejemplo. Son árboles de decisión, no una red neuronal.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 7. API -->
 <section class="slide" id="api" aria-label="Publicación del modelo">
   <div class="wrap">
     <div class="head">
@@ -440,7 +519,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 
 <nav class="nav" aria-label="Navegación de diapositivas">
   <button id="btnPrev" type="button" aria-label="Diapositiva anterior"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
-  <span id="contador" aria-live="polite">1 / 8</span>
+  <span id="contador" aria-live="polite">1 / 9</span>
   <button id="btnNext" type="button" aria-label="Diapositiva siguiente"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button>
   <button id="btnTheme" type="button" aria-label="Cambiar entre tema claro y oscuro"><svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
   <button id="btnFull" type="button" aria-label="Pantalla completa"><svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
@@ -490,6 +569,37 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
       e5@{ animation: slow }
       class B,P capa
       class N,I bad`,
+    modelo: `flowchart LR
+      X(["DL · ATL → LAX<br/>viernes de julio, 18 h"]) e1@--> S
+      X e2@--> O
+      X e3@--> T
+      subgraph PRE["Preprocesamiento"]
+        direction TB
+        S["Escalado<br/>6 números"]
+        O["One-hot<br/>15 aerolíneas"]
+        T["Target encoding<br/>348 aeropuertos"]
+      end
+      S e4@--> G["Gradient boosting<br/>hasta 300 árboles"]
+      O e5@--> G
+      T e6@--> G
+      G e7@--> P["Probabilidad<br/><b>0.66</b>"]
+      P e8@--> D{"¿≥ 0.4979?"}
+      D e9@-->|sí| R(["Retrasado"])
+      D -->|no| A(["A tiempo"])
+      e1@{ animation: slow }
+      e2@{ animation: slow }
+      e3@{ animation: slow }
+      e4@{ animation: slow }
+      e5@{ animation: slow }
+      e6@{ animation: slow }
+      e7@{ animation: slow }
+      e8@{ animation: slow }
+      e9@{ animation: slow }
+      class S,O,T capa
+      class G,P ml
+      class R bad
+      class A good
+      class PRE job`,
     api: `flowchart LR
       P(["Petición"]) e1@--> F{"¿Tipos y<br/>columnas?"}
       F -->|no| X1["400<br/>firma MLflow"]
