@@ -26,6 +26,7 @@
   --late: #c2410c;
   --ok: #1d7a4c;
   --on-color: #ffffff;  /* texto sobre barras de color */
+  --grid: color-mix(in srgb, var(--line) 55%, transparent);
   --display: "Big Shoulders Display", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
   --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
@@ -47,12 +48,20 @@
 }
 
 html { scroll-behavior: smooth; }
-body { background: var(--bg); color: var(--ink); margin: 0; font-family: var(--body); font-size: clamp(15px, 0.5vw + 10px, 21px); line-height: 1.45; }
+/* Fondo: cuadrícula de carta aeronáutica, muy tenue */
+body {
+  background-color: var(--bg); color: var(--ink); margin: 0;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 96px 96px; background-attachment: fixed;
+  font-family: var(--body); font-size: clamp(15px, 0.5vw + 10px, 21px); line-height: 1.45;
+}
 
 /* ---------- Diapositivas ---------- */
 .slide {
   min-height: 100vh; min-height: 100dvh; box-sizing: border-box; display: grid; align-content: center;
-  padding-block: clamp(28px, 6vh, 72px) clamp(76px, 10vh, 104px);
+  padding-block: calc(var(--ruta-alto) + clamp(20px, 5vh, 60px)) clamp(76px, 10vh, 104px);
   padding-left: max(16px, 4vw, env(safe-area-inset-left, 0px));
   padding-right: max(16px, 4vw, env(safe-area-inset-right, 0px));
   border-bottom: 1px solid var(--line);
@@ -155,7 +164,8 @@ figcaption { font-size: 0.8em; color: var(--muted); font-family: var(--mono); }
 
 /* ---------- Cierre ---------- */
 .final-list { display: grid; gap: 0; }
-.final-list div { display: grid; grid-template-columns: 5.2em 1fr; gap: 1rem; align-items: baseline; border-bottom: 1px solid var(--line); padding-block: 0.55em; }
+.final-list div { display: grid; grid-template-columns: 5.2em 1fr auto; gap: 1rem; align-items: baseline; border-bottom: 1px solid var(--line); padding-block: 0.55em; }
+.final-list .llego { font-family: var(--mono); font-size: 0.78em; font-weight: 700; letter-spacing: 0.12em; color: var(--ok); }
 .final-list b { font-family: var(--display); font-weight: 900; text-transform: uppercase; font-size: 1.4em; color: var(--amber-ink); }
 .repo { font-family: var(--mono); word-break: break-all; }
 .repo a { color: var(--ink); }
@@ -173,8 +183,45 @@ figcaption { font-size: 0.8em; color: var(--muted); font-family: var(--mono); }
 .nav button:focus-visible { outline: 2px solid var(--amber-ink); outline-offset: 2px; }
 .nav svg { width: 1.15em; height: 1.15em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 #contador { font-family: var(--mono); font-size: 0.8em; color: var(--muted); min-width: 4.2em; text-align: center; }
-.progreso { position: fixed; z-index: 21; top: env(safe-area-inset-top, 0px); left: 0; right: 0; height: 4px; }
-.progreso div { height: 100%; background: var(--amber); transform-origin: left; transform: scaleX(0.125); transition: transform 0.4s ease; }
+/* ---------- Plan de vuelo: la presentación como un vuelo de 8 fases, con el avión en la fase actual ---------- */
+:root { --ruta-alto: 52px; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 22; background: var(--bg); }
+.ruta {
+  position: fixed; z-index: 21; top: env(safe-area-inset-top, 0px); left: 0; right: 0; height: var(--ruta-alto);
+  padding-left: max(16px, 4vw, env(safe-area-inset-left, 0px)); padding-right: max(16px, 4vw, env(safe-area-inset-right, 0px));
+  background: color-mix(in srgb, var(--bg) 90%, transparent); backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--line); box-sizing: border-box;
+}
+.ruta-pista { position: relative; height: 100%; width: min(1440px, 100%); margin-inline: auto; }
+.ruta-fases { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(8, 1fr); height: 100%; }
+.ruta-fases li { display: grid; justify-items: center; align-content: center; gap: 4px; position: relative; z-index: 1; font-family: var(--mono); font-size: 0.6em; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.ruta-fases li::before { content: ""; width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--muted); background: var(--bg); box-sizing: border-box; }
+.ruta-fases li.hecha::before { border-color: var(--amber-ink); background: var(--amber-ink); }
+.ruta-fases li.actual { color: var(--amber-ink); font-weight: 700; }
+.ruta-fases li.actual::before { opacity: 0; }
+.ruta-linea, .ruta-hecha { position: absolute; top: calc(50% - 8px); height: 0; left: 6.25%; }
+.ruta-linea { right: 6.25%; border-top: 2px dashed var(--line); }
+.ruta-hecha { width: 0; border-top: 2px solid var(--amber-ink); transition: width 0.6s cubic-bezier(.2, .8, .2, 1); }
+.ruta-avion { position: absolute; top: calc(50% - 8px); left: 6.25%; width: 22px; height: 22px; transform: translate(-50%, -50%); color: var(--amber-ink); transition: left 0.6s cubic-bezier(.2, .8, .2, 1); z-index: 2; }
+.ruta-avion path { fill: currentColor; }
+@media (max-width: 900px) { .ruta-fases li span { display: none; } .ruta-fases li { align-content: center; } }
+
+/* ---------- Pase de abordar (portada) ---------- */
+.pase { display: grid; grid-template-columns: minmax(0, 1fr) auto; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; max-width: 34em; }
+.pase-main { display: grid; gap: 0.8rem; padding: 1rem 1.2rem; }
+.pase-tramo { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.8rem; }
+.pase-tramo .iata { font-family: var(--display); font-weight: 900; font-size: 2.6em; line-height: 0.9; letter-spacing: 0.02em; }
+.pase-tramo .iata small { display: block; font-family: var(--mono); font-size: 0.24em; font-weight: 500; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; margin-top: 0.35em; }
+.pase-tramo .vuelo { display: grid; align-items: center; color: var(--amber-ink); }
+.pase-tramo .vuelo::before { content: ""; grid-area: 1 / 1; border-top: 2px dashed var(--line); }
+.pase-tramo .vuelo svg { grid-area: 1 / 1; justify-self: center; width: 26px; height: 26px; background: var(--panel); padding-inline: 4px; }
+.pase-tramo .vuelo path { fill: currentColor; }
+.pase-datos { display: flex; flex-wrap: wrap; gap: 0.5rem 1.4rem; }
+.pase-datos div { display: grid; }
+.pase-datos span { font-family: var(--mono); font-size: 0.62em; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.pase-datos b { font-family: var(--mono); font-size: 0.95em; }
+.pase-stub { width: 3.4em; border-left: 2px dashed var(--line); padding: 0.9rem 0.7rem; display: grid; }
+.pase-stub::after { content: ""; background: repeating-linear-gradient(0deg, var(--ink) 0 2px, transparent 2px 4px, var(--ink) 4px 5px, transparent 5px 8px, var(--ink) 8px 11px, transparent 11px 13px); border-radius: 2px; }
 
 /* ---------- Movimiento: el estado normal es el final; al activarse la diapositiva, cada pieza entra desde "from" ---------- */
 @keyframes subir { from { opacity: 0; transform: translateY(18px); } }
@@ -187,13 +234,23 @@ figcaption { font-size: 0.8em; color: var(--muted); font-family: var(--mono); }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .activa *, .activa { animation: none !important; }
-  .progreso div { transition: none; }
+  .ruta-avion, .ruta-hecha { transition: none; }
   .diagrama svg .edge-animation-slow, .diagrama svg .edge-animation-fast { animation: none !important; }
 }
 @media (max-width: 700px) { .tests { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>
 
-<div class="progreso" aria-hidden="true"><div id="barra"></div></div>
+<div class="ruta" aria-hidden="true">
+  <div class="ruta-pista">
+    <div class="ruta-linea"></div>
+    <div class="ruta-hecha" id="rutaHecha"></div>
+    <ol class="ruta-fases" id="rutaFases">
+      <li><span>Embarque</span></li><li><span>Rodaje</span></li><li><span>Despegue</span></li><li><span>Ascenso</span></li>
+      <li><span>Crucero</span></li><li><span>Descenso</span></li><li><span>Aproximación</span></li><li><span>Aterrizaje</span></li>
+    </ol>
+    <svg class="ruta-avion" id="rutaAvion" viewBox="0 0 64 64"><path d="M60 30.5c0-1.9-1.6-3.5-3.5-3.5H40.8L26.4 6.4A2 2 0 0 0 24.8 5.5h-4.3a1 1 0 0 0-.9 1.4L27.6 27H14.2l-5.6-7.2a2 2 0 0 0-1.6-.8H4a1 1 0 0 0-1 1.3l3.6 11.7-3.6 11.7A1 1 0 0 0 4 45h3a2 2 0 0 0 1.6-.8l5.6-7.2h13.4l-8 20.1a1 1 0 0 0 .9 1.4h4.3a2 2 0 0 0 1.6-.9L40.8 37h15.7c1.9 0 3.5-1.6 3.5-3.5z"/></svg>
+  </div>
+</div>
 
 <!-- 1. Portada -->
 <section class="slide hero" id="portada" aria-label="Portada">
@@ -204,7 +261,22 @@ figcaption { font-size: 0.8em; color: var(--muted); font-family: var(--mono); }
         <p class="eyebrow e" style="--i:0"><span class="gate">Proyecto final</span><span>Big Data · Databricks</span></p>
         <h1 class="e" style="--i:1">¿Se retrasará mi <span class="q">vuelo?</span></h1>
         <p class="lead e" style="--i:2">Predecir si un vuelo llega 15 minutos tarde, con datos que conoces antes de despegar.</p>
-        <p class="byline e" style="--i:3">Hector Moran · Noviembre de 2026</p>
+        <div class="pase e" style="--i:3" aria-label="Pase de abordar: Hector Moran, de datos del BTS a la app, asiento F1">
+          <div class="pase-main">
+            <div class="pase-tramo">
+              <div class="iata">BTS<small>datos crudos</small></div>
+              <div class="vuelo"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M60 30.5c0-1.9-1.6-3.5-3.5-3.5H40.8L26.4 6.4A2 2 0 0 0 24.8 5.5h-4.3a1 1 0 0 0-.9 1.4L27.6 27H14.2l-5.6-7.2a2 2 0 0 0-1.6-.8H4a1 1 0 0 0-1 1.3l3.6 11.7-3.6 11.7A1 1 0 0 0 4 45h3a2 2 0 0 0 1.6-.8l5.6-7.2h13.4l-8 20.1a1 1 0 0 0 .9 1.4h4.3a2 2 0 0 0 1.6-.9L40.8 37h15.7c1.9 0 3.5-1.6 3.5-3.5z"/></svg></div>
+              <div class="iata">APP<small>predicción</small></div>
+            </div>
+            <div class="pase-datos">
+              <div><span>Pasajero</span><b>Hector Moran</b></div>
+              <div><span>Vuelo</span><b>BD 2024</b></div>
+              <div><span>Asiento</span><b>F1</b></div>
+              <div><span>Fecha</span><b>NOV 2026</b></div>
+            </div>
+          </div>
+          <div class="pase-stub" aria-hidden="true"></div>
+        </div>
       </div>
       <div class="board e" style="--i:2" role="table" aria-label="Resumen del proyecto">
         <div class="board-head" role="row"><span role="columnheader">CONCEPTO</span><span role="columnheader">CIFRA</span><span role="columnheader">ESTADO</span></div>
@@ -356,10 +428,10 @@ figcaption { font-size: 0.8em; color: var(--muted); font-family: var(--mono); }
       <h2 class="e" style="--i:1">De 7 millones de filas a una respuesta</h2>
     </div>
     <div class="final-list">
-      <div class="e" style="--i:2"><b>Datos</b><span>Medallion con 7 M de registros y un Job que lo orquesta</span></div>
-      <div class="e" style="--i:3"><b>Modelo</b><span>F1 0.392 en días nunca vistos, sobre la línea base</span></div>
-      <div class="e" style="--i:4"><b>API</b><span>Endpoint validado, documentado y 9 de 9 pruebas</span></div>
-      <div class="e" style="--i:5"><b>App</b><span>Consulta el endpoint, reintenta y avisa</span></div>
+      <div class="e" style="--i:2"><b>Datos</b><span>Medallion con 7 M de registros y un Job que lo orquesta</span><span class="llego">ATERRIZÓ</span></div>
+      <div class="e" style="--i:3"><b>Modelo</b><span>F1 0.392 en días nunca vistos, sobre la línea base</span><span class="llego">ATERRIZÓ</span></div>
+      <div class="e" style="--i:4"><b>API</b><span>Endpoint validado, documentado y 9 de 9 pruebas</span><span class="llego">ATERRIZÓ</span></div>
+      <div class="e" style="--i:5"><b>App</b><span>Consulta el endpoint, reintenta y avisa</span><span class="llego">ATERRIZÓ</span></div>
     </div>
     <p class="small e" style="--i:6">Siguiente paso: agregar el clima.</p>
     <p class="repo e" style="--i:7"><a href="https://github.com/hmoran457-creator/proyecto-final-vuelos">github.com/hmoran457-creator/proyecto-final-vuelos</a></p>
@@ -548,7 +620,14 @@ figcaption { font-size: 0.8em; color: var(--muted); font-family: var(--mono); }
     });
     current = idx;
     $("contador").textContent = `${current + 1} / ${slides.length}`;
-    $("barra").style.transform = `scaleX(${(current + 1) / slides.length})`;
+    // Plan de vuelo: el avión se para en la fase de la diapositiva actual
+    const n = slides.length;
+    $("rutaAvion").style.left = `${((current + 0.5) / n) * 100}%`;
+    $("rutaHecha").style.width = `${(current / n) * 100}%`;
+    [...$("rutaFases").children].forEach((f, i) => {
+      f.classList.toggle("actual", i === current);
+      f.classList.toggle("hecha", i < current);
+    });
   }
   let pendiente = false;
   addEventListener("scroll", () => {
