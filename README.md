@@ -373,8 +373,8 @@ Detalles técnicos (nombres, contrato de la API, límites de Free Edition): [`do
 ## Presentación
 
 [`presentacion/Presentacion_Vuelos.html`](presentacion/Presentacion_Vuelos.html): 8 diapositivas para la exposición de 5 minutos, con tema
-claro y oscuro y diagramas animados. GitHub muestra el código del archivo, no la presentación: descarga la carpeta `presentacion/` y abre el
-`.html` en el navegador. Se navega con las flechas del teclado; la tecla `T` cambia el tema.
+claro y oscuro y diagramas animados. GitHub muestra el código del archivo, no la presentación: descarga el archivo (botón *Download raw file*)
+y ábrelo en el navegador. Es un solo archivo con las imágenes incluidas; los diagramas animados necesitan internet. Se navega con las flechas del teclado; la tecla `T` cambia el tema.
 
 ## Rúbrica → evidencia
 
