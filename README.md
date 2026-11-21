@@ -305,7 +305,7 @@ Resultado del notebook: `OK: endpoint vuelos-retrasos listo, sirviendo la versi�
 | Modelo servido | `workspace.vuelos.modelo_retrasos`, versi처n 2 (alias `campeon`) |
 | Aplicaci처n | [vuelos-app](https://vuelos-app-7474652953145101.aws.databricksapps.com) (pide iniciar sesi처n en el workspace) |
 | Autenticaci처n | Encabezado `Authorization: Bearer <token>` con un token de acceso personal de Databricks (scope `model-serving`) |
-| Token de acceso (temporal) | `PEGAR_TOKEN_AQUI` |
+| Token de acceso (temporal) | `dapi4fbf012c3b4b748c011b70567b727684` |
 
 **Primera consulta:** el endpoint escala a cero tras 30 minutos sin uso. La primera petici처n puede tardar unos 30 segundos
 o responder 504 mientras despierta; basta con repetirla.
