@@ -291,6 +291,76 @@ Resultado del notebook: `OK: endpoint vuelos-retrasos listo, sirviendo la versi�
 
 ![Endpoint vuelos-retrasos en estado Ready](docs/capturas/endpoint_ready.png)
 
+### Cómo consultar la API
+
+**Datos del servicio**
+
+| Dato | Valor |
+|---|---|
+| Workspace de Databricks | `https://dbc-390c9988-f5ab.cloud.databricks.com` |
+| Endpoint | `vuelos-retrasos` (Model Serving, CPU, escala a cero) |
+| Predicción | `POST https://dbc-390c9988-f5ab.cloud.databricks.com/serving-endpoints/vuelos-retrasos/invocations` |
+| Estado del endpoint | `GET https://dbc-390c9988-f5ab.cloud.databricks.com/api/2.0/serving-endpoints/vuelos-retrasos` |
+| Esquema OpenAPI en vivo | `GET https://dbc-390c9988-f5ab.cloud.databricks.com/api/2.0/serving-endpoints/vuelos-retrasos/openapi` |
+| Modelo servido | `workspace.vuelos.modelo_retrasos`, versión 2 (alias `campeon`) |
+| Aplicación | [vuelos-app](https://vuelos-app-7474652953145101.aws.databricksapps.com) (pide iniciar sesión en el workspace) |
+| Autenticación | Encabezado `Authorization: Bearer <token>` con un token de acceso personal de Databricks (scope `model-serving`) |
+| Token de acceso (temporal) | `PEGAR_TOKEN_AQUI` |
+
+**Primera consulta:** el endpoint escala a cero tras 30 minutos sin uso. La primera petición puede tardar unos 30 segundos
+o responder 504 mientras despierta; basta con repetirla.
+
+**Sin código (con acceso al workspace):** barra lateral **Serving** > `vuelos-retrasos` > **Query endpoint** > **Show Example**
+> **Send Request**. Para ver un rechazo, cambia `mes` a 13 y vuelve a enviar.
+
+**Desde una terminal o Python.** Primero se definen la dirección del workspace y el token; los tres ejemplos los leen de ahí.
+
+Bash, macOS o Git Bash:
+
+```bash
+export DATABRICKS_HOST="https://dbc-390c9988-f5ab.cloud.databricks.com"
+export DATABRICKS_TOKEN="<token>"
+curl -s -X POST "$DATABRICKS_HOST/serving-endpoints/vuelos-retrasos/invocations" -H "Authorization: Bearer $DATABRICKS_TOKEN" -H "Content-Type: application/json" -d '{"dataframe_split": {"columns": ["mes", "dia_semana", "hora_salida_prog", "hora_llegada_prog", "distancia_millas", "duracion_prog_min", "aerolinea", "origen", "destino"], "data": [[7, 5, 18, 21, 1947.0, 285.0, "DL", "ATL", "LAX"]]}}'
+```
+
+Windows PowerShell:
+
+```powershell
+$env:DATABRICKS_HOST = "https://dbc-390c9988-f5ab.cloud.databricks.com"
+$env:DATABRICKS_TOKEN = "<token>"
+$cuerpo = '{"dataframe_split": {"columns": ["mes", "dia_semana", "hora_salida_prog", "hora_llegada_prog", "distancia_millas", "duracion_prog_min", "aerolinea", "origen", "destino"], "data": [[7, 5, 18, 21, 1947.0, 285.0, "DL", "ATL", "LAX"]]}}'
+Invoke-RestMethod -Method Post -Uri "$env:DATABRICKS_HOST/serving-endpoints/vuelos-retrasos/invocations" -Headers @{ Authorization = "Bearer $env:DATABRICKS_TOKEN" } -ContentType "application/json" -Body $cuerpo
+```
+
+Python:
+
+```python
+import os
+
+import requests
+
+host, token = os.environ["DATABRICKS_HOST"], os.environ["DATABRICKS_TOKEN"]
+vuelo = {
+    "dataframe_split": {
+        "columns": ["mes", "dia_semana", "hora_salida_prog", "hora_llegada_prog",
+                    "distancia_millas", "duracion_prog_min", "aerolinea", "origen", "destino"],
+        "data": [[7, 5, 18, 21, 1947.0, 285.0, "DL", "ATL", "LAX"]],
+    }
+}
+respuesta = requests.post(f"{host}/serving-endpoints/vuelos-retrasos/invocations",
+                          headers={"Authorization": f"Bearer {token}"}, json=vuelo, timeout=120)
+print(respuesta.status_code, respuesta.json())
+```
+
+Respuesta esperada: `200 {"predictions": [{"probabilidad_retraso": 0.6618, "retraso_predicho": 1, "umbral_decision": 0.4979}]}`.
+Con `mes` igual a 13 la respuesta es `400` con el mensaje `Entrada inválida: fila 0: mes=13 fuera de rango (1-12)`.
+
+Para descargar el esquema OpenAPI en vivo (Bash):
+
+```bash
+curl -s "$DATABRICKS_HOST/api/2.0/serving-endpoints/vuelos-retrasos/openapi" -H "Authorization: Bearer $DATABRICKS_TOKEN"
+```
+
 ## 4. Aplicación de consulta (rúbrica: 30 puntos)
 
 La app (`app/`, Streamlit en **Databricks Apps**) **consume el endpoint publicado por REST con la identidad de la propia app
